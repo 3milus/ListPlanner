@@ -203,7 +203,15 @@ async function loadState() {
       if (Array.isArray(d.lists))                        state.lists   = d.lists;
       if (d.pinHash) state.pinHash = d.pinHash;
     } else {
-      // First ever run — initialise Firestore document
+      // First ever run — migrate any existing localStorage data then init Firestore
+      try {
+        const raw = localStorage.getItem('listplanner_v2');
+        if (raw) {
+          const d = JSON.parse(raw);
+          if (Array.isArray(d.presets) && d.presets.length) state.presets = d.presets;
+          if (Array.isArray(d.lists)   && d.lists.length)   state.lists   = d.lists;
+        }
+      } catch (e) {}
       if (state.presets.length === 0) state.presets = [createDefaultPreset()];
       state.pinHash = await hashPin('1981');
       await saveState();
@@ -1177,16 +1185,29 @@ function setupEventListeners() {
     switchView(view);
   });
 
-  // LOGIN SCREEN
+  // LOGIN SCREEN — step 1: pick user card
   document.getElementById('login-screen').addEventListener('click', (e) => {
     const card = e.target.closest('.login-user-card');
     if (!card) return;
+    // Highlight selected card
+    document.querySelectorAll('.login-user-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
     state.currentUser = card.dataset.user;
-    sessionStorage.setItem('loggedIn', '1');
-    saveState();
-    hideLogin();
-    renderUserPills();
-    render();
+    // Show PIN entry
+    const pinSection = document.getElementById('login-pin-section');
+    pinSection.classList.remove('hidden');
+    document.getElementById('login-pin-error').classList.add('hidden');
+    const pinInput = document.getElementById('login-pin-input');
+    pinInput.value = '';
+    pinInput.focus();
+  });
+
+  // LOGIN SCREEN — step 2: enter PIN
+  document.getElementById('login-enter-btn').addEventListener('click', async () => {
+    await doLogin();
+  });
+  document.getElementById('login-pin-input').addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') await doLogin();
   });
 
   // MODE TOGGLE (Paste / Generate)
@@ -1784,12 +1805,57 @@ function showLogin() {
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('app').classList.add('hidden');
   document.querySelector('.bottom-nav').classList.add('hidden');
+  // Reset PIN UI
+  document.getElementById('login-pin-section').classList.add('hidden');
+  document.getElementById('login-pin-error').classList.add('hidden');
+  document.getElementById('login-pin-input').value = '';
+  document.querySelectorAll('.login-user-card').forEach(c => c.classList.remove('selected'));
 }
 
 function hideLogin() {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.querySelector('.bottom-nav').classList.remove('hidden');
+}
+
+async function doLogin() {
+  const pin = document.getElementById('login-pin-input').value;
+  const errorEl = document.getElementById('login-pin-error');
+
+  // If pinHash not yet loaded (Firestore still loading), wait briefly
+  if (!state.pinHash) {
+    errorEl.textContent = 'Still loading — try again in a moment';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  const ok = await verifyPin(pin);
+  if (!ok) {
+    errorEl.textContent = 'Incorrect PIN — try again';
+    errorEl.classList.remove('hidden');
+    document.getElementById('login-pin-input').value = '';
+    document.getElementById('login-pin-input').focus();
+    return;
+  }
+
+  sessionStorage.setItem('loggedIn', '1');
+  ui_appReady = true;
+  saveState();
+  hideLogin();
+  renderUserPills();
+  render();
+}
+
+function setupRealtimeSync() {
+  if (!db) return;
+  db.collection('listplanner').doc('shared').onSnapshot(snap => {
+    if (!snap.exists || snap.metadata.hasPendingWrites) return;
+    const d = snap.data();
+    if (Array.isArray(d.presets) && d.presets.length) state.presets = d.presets;
+    if (Array.isArray(d.lists))                        state.lists   = d.lists;
+    if (d.pinHash)                                     state.pinHash = d.pinHash;
+    if (ui_appReady) render();
+  });
 }
 
 // ============================================================
@@ -1810,8 +1876,12 @@ function assignBtnHtml(key, assignee, listId) {
 // INIT
 // ============================================================
 
-function init() {
-  loadState();
+async function init() {
+  initFirebase();
+  showLogin();
+  setupEventListeners();
+
+  await loadState();
 
   // Create default preset if first run
   if (state.presets.length === 0) {
@@ -1826,16 +1896,16 @@ function init() {
       name: 'Grocery Store',
       sections,
     });
-    saveState();
+    await saveState();
   }
 
-  setupEventListeners();
-  render();
+  setupRealtimeSync();
 
-  if (!sessionStorage.getItem('loggedIn')) {
-    showLogin();
-  } else {
+  if (sessionStorage.getItem('loggedIn') && state.currentUser) {
+    ui_appReady = true;
+    hideLogin();
     renderUserPills();
+    render();
   }
 }
 
