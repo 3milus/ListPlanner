@@ -801,11 +801,16 @@ function renderListSectionCard(listId, section, items, checkedItems, assignments
           </button>
           ${assignBtnHtml(key, assignee, listId)}
           ${badge}
+          <button class="item-delete-btn" data-action="delete-list-item"
+            data-list-id="${eLid}" data-section-id="${eSid}" data-item="${eItem}" aria-label="Delete item">×</button>
         </div>
         ${movePicker}
       </li>
     `;
   }).join('');
+
+  const eLid = escapeHtml(listId);
+  const eSid = escapeHtml(section.id);
 
   return `
     <div class="section-card" style="--section-color: ${section.color}; --section-tint: ${tintColor};">
@@ -816,8 +821,31 @@ function renderListSectionCard(listId, section, items, checkedItems, assignments
       <ul class="checklist">
         ${itemsHtml}
       </ul>
+      <div class="add-item-row">
+        <input class="add-item-input" type="text" placeholder="Add item…"
+          autocomplete="off" autocorrect="off" spellcheck="false"
+          data-list-id="${eLid}" data-section-id="${eSid}" />
+        <button class="add-item-btn" data-action="add-list-item"
+          data-list-id="${eLid}" data-section-id="${eSid}" aria-label="Add item">+</button>
+      </div>
     </div>
   `;
+}
+
+function addItemToList(listId, sectionId, input) {
+  const text = input ? input.value.trim() : '';
+  if (!text) return;
+  const list = state.lists.find(l => l.id === listId);
+  if (!list) return;
+  if (!list.items[sectionId]) list.items[sectionId] = [];
+  if (!list.items[sectionId].includes(text)) list.items[sectionId].push(text);
+  saveState();
+  renderListsView();
+  // Re-focus the input for the same section after re-render
+  const newInput = document.querySelector(
+    `.add-item-input[data-list-id="${listId}"][data-section-id="${sectionId}"]`
+  );
+  if (newInput) newInput.focus();
 }
 
 function renderListUncategorized(listId, items, sections) {
@@ -1574,6 +1602,30 @@ function setupEventListeners() {
       return;
     }
 
+    // Delete an item from a saved list section
+    const deleteItemBtn = e.target.closest('[data-action="delete-list-item"]');
+    if (deleteItemBtn) {
+      const { listId, sectionId, item } = deleteItemBtn.dataset;
+      const list = state.lists.find(l => l.id === listId);
+      if (!list) return;
+      list.items[sectionId] = (list.items[sectionId] || []).filter(i => i !== item);
+      const key = `${sectionId}::${item}`;
+      if (list.checkedItems) delete list.checkedItems[key];
+      if (list.assignments) delete list.assignments[key];
+      saveState();
+      renderListsView();
+      return;
+    }
+
+    // Add an item to a saved list section (button click)
+    const addItemBtn = e.target.closest('[data-action="add-list-item"]');
+    if (addItemBtn) {
+      const { listId, sectionId } = addItemBtn.dataset;
+      const input = addItemBtn.closest('.add-item-row')?.querySelector('.add-item-input');
+      addItemToList(listId, sectionId, input);
+      return;
+    }
+
     // Close / reopen list
     const closeBtn = e.target.closest('[data-action="toggle-close-list"]');
     if (closeBtn) {
@@ -1719,6 +1771,15 @@ function setupEventListeners() {
       updateSectionBadge(e.target.closest('.section-card'));
       saveState();
     }
+  });
+
+  // LISTS container: Enter key on add-item inputs
+  document.getElementById('lists-container').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const input = e.target.closest('.add-item-input');
+    if (!input) return;
+    e.preventDefault();
+    addItemToList(input.dataset.listId, input.dataset.sectionId, input);
   });
 
   // PRESETS: add preset button
