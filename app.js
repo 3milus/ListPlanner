@@ -41,6 +41,7 @@ let state = {
 let ui = {
   view: 'sort',
   sortPhase: 'input',
+  sortMode: 'paste',      // 'paste' | 'generate'
   selectedPresetId: null,
   sortedResult: null,
   checkedItems: {},       // sort view: { key: 'Emil'|'Rebecca' }
@@ -287,6 +288,80 @@ async function sortWithLLM(items, sections) {
 }
 
 // ============================================================
+// LIST GENERATION
+// ============================================================
+
+function buildGeneratePrompt(description, preset) {
+  const sections = getSortedSections(preset.sections);
+  const sectionList = sections.map((s, i) => `${i + 1}. ${s.name}`).join('\n');
+
+  // Format past lists as context (newest first, cap at 20)
+  const recentLists = [...state.lists]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 20);
+
+  let pastContext = '';
+  if (recentLists.length > 0) {
+    pastContext = '\n\nHere are the user\'s past lists to understand their preferences and typical items:\n';
+    recentLists.forEach(list => {
+      pastContext += `\nList: "${list.name}" (${list.presetName})\n`;
+      (list.sections || []).forEach(s => {
+        const items = (list.items || {})[s.id] || [];
+        if (items.length > 0) pastContext += `  ${s.name}: ${items.join(', ')}\n`;
+      });
+      const uncat = (list.items || {}).uncategorized || [];
+      if (uncat.length > 0) pastContext += `  Other: ${uncat.join(', ')}\n`;
+    });
+  }
+
+  return `You are a helpful personal assistant creating a tailored list for the user.
+
+The user wants a list for: "${description}"${pastContext}
+
+Create a comprehensive and practical list for this request. Use the past lists as context to understand their preferences, typical items, brands, and quantities — but adapt for the new request.
+
+Organise all items into these sections:
+${sectionList}
+
+Respond ONLY with a valid JSON object. Each key must be the EXACT section name from the list above, and the value must be an array of item strings. Only include sections that have items. Items that don't fit any section go under "Uncategorized".
+
+Example: {"Frugt & Grønt": ["æbler", "bananer"], "Mejeri & Æg": ["mælk", "ost"]}`;
+}
+
+function parseGenerateResponse(response, preset) {
+  const result = { uncategorized: [] };
+  const sections = getSortedSections(preset.sections);
+  sections.forEach(s => { result[s.id] = []; });
+
+  const nameToId = {};
+  sections.forEach(s => { nameToId[s.name.toLowerCase()] = s.id; });
+
+  Object.entries(response).forEach(([sectionName, items]) => {
+    if (!Array.isArray(items)) return;
+    if (sectionName === 'Uncategorized') {
+      result.uncategorized.push(...items);
+      return;
+    }
+    const sectionId = nameToId[sectionName.toLowerCase()];
+    if (sectionId) {
+      result[sectionId] = items;
+    } else {
+      result.uncategorized.push(...items);
+    }
+  });
+
+  return result;
+}
+
+async function generateList(description, preset) {
+  const prompt = buildGeneratePrompt(description, preset);
+  const response = state.apiProvider === 'gemini'
+    ? await callGemini(prompt)
+    : await callOpenAI(prompt);
+  return parseGenerateResponse(response, preset);
+}
+
+// ============================================================
 // RENDER: SORT VIEW
 // ============================================================
 
@@ -309,6 +384,7 @@ function renderSortView() {
     phaseInput.classList.remove('hidden');
     phaseResults.classList.add('hidden');
     btnNewList.classList.add('hidden');
+    renderSortModeToggle();
     updateSortButton();
   } else {
     phaseInput.classList.add('hidden');
@@ -316,6 +392,17 @@ function renderSortView() {
     btnNewList.classList.remove('hidden');
     renderResults();
   }
+}
+
+function renderSortModeToggle() {
+  const isPaste = ui.sortMode === 'paste';
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === ui.sortMode);
+  });
+  const pasteContent    = document.getElementById('paste-mode-content');
+  const generateContent = document.getElementById('generate-mode-content');
+  if (pasteContent)    pasteContent.classList.toggle('hidden', !isPaste);
+  if (generateContent) generateContent.classList.toggle('hidden', isPaste);
 }
 
 function renderPresetPicker() {
@@ -1000,6 +1087,56 @@ function setupEventListeners() {
     switchView(view);
   });
 
+  // MODE TOGGLE (Paste / Generate)
+  document.getElementById('phase-input').addEventListener('click', (e) => {
+    const btn = e.target.closest('.mode-btn');
+    if (!btn || btn.dataset.mode === ui.sortMode) return;
+    ui.sortMode = btn.dataset.mode;
+    renderSortModeToggle();
+    updateSortButton();
+  });
+
+  // GENERATE INPUT: enable/disable button
+  document.getElementById('generate-input').addEventListener('input', () => {
+    const input = document.getElementById('generate-input');
+    const btn   = document.getElementById('btn-generate');
+    if (input && btn) btn.disabled = input.value.trim().length === 0;
+  });
+
+  // GENERATE button
+  document.getElementById('btn-generate').addEventListener('click', async () => {
+    const input       = document.getElementById('generate-input');
+    const description = input ? input.value.trim() : '';
+    if (!description) return;
+
+    const preset = getPreset(ui.selectedPresetId);
+    if (!preset) { alert('Please select a preset first.'); return; }
+    if (!state.apiKey) { alert('Please add your API key in the Presets tab first.'); return; }
+
+    const btn       = document.getElementById('btn-generate');
+    btn.disabled    = true;
+    btn.textContent = 'Creating...';
+
+    try {
+      const result      = await generateList(description, preset);
+      result._presetId  = preset.id;
+      ui.sortedResult   = result;
+      ui.checkedItems   = {};
+      ui.sortPhase      = 'results';
+
+      const nameInput = document.getElementById('list-name-input');
+      if (nameInput) nameInput.value = description.length > 40 ? description.slice(0, 40) + '…' : description;
+
+      renderSortView();
+    } catch (err) {
+      console.error('Generate failed:', err);
+      alert(`Failed to create list: ${err.message}`);
+    } finally {
+      btn.textContent = 'Create List';
+      btn.disabled    = input ? input.value.trim().length === 0 : true;
+    }
+  });
+
   // PRESET PICKER chips
   document.getElementById('preset-picker').addEventListener('click', (e) => {
     const chip = e.target.closest('.preset-chip');
@@ -1059,10 +1196,13 @@ function setupEventListeners() {
 
   // SORT: new list button
   document.getElementById('btn-new-list').addEventListener('click', () => {
-    ui.sortPhase = 'input';
+    ui.sortPhase    = 'input';
     ui.sortedResult = null;
-    const textarea = document.getElementById('list-input');
+    ui.checkedItems = {};
+    const textarea  = document.getElementById('list-input');
     if (textarea) textarea.value = '';
+    const genInput  = document.getElementById('generate-input');
+    if (genInput) genInput.value = '';
     renderSortView();
   });
 

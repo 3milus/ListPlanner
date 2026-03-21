@@ -28,8 +28,21 @@
       <div class="preset-picker" id="preset-picker"></div>
 
       <div id="phase-input" class="phase">
-        <textarea id="list-input" placeholder="Paste your list here&#10;One item per line"></textarea>
-        <button id="btn-sort" class="btn-primary" disabled>Sort List</button>
+        <div class="mode-toggle">
+          <button class="mode-btn active" data-mode="paste">Paste List</button>
+          <button class="mode-btn" data-mode="generate">Generate List</button>
+        </div>
+
+        <div id="paste-mode-content">
+          <textarea id="list-input" placeholder="Paste your list here&#10;One item per line"></textarea>
+          <button id="btn-sort" class="btn-primary" disabled>Sort List</button>
+        </div>
+
+        <div id="generate-mode-content" class="hidden">
+          <p class="generate-hint">Describe what you need a list for. Your past lists will be used to personalise suggestions.</p>
+          <textarea id="generate-input" placeholder="e.g. camping trip with the kids for a weekend..."></textarea>
+          <button id="btn-generate" class="btn-primary" disabled>Create List</button>
+        </div>
       </div>
 
       <div id="phase-results" class="phase hidden">

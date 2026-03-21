@@ -1087,6 +1087,79 @@ html, body {
 }
 
 /* ============================================================
+   MODE TOGGLE (Paste / Generate)
+   ============================================================ */
+
+.mode-toggle {
+  display: flex;
+  gap: 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1.5px solid var(--border);
+  flex-shrink: 0;
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 10px 8px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--text-muted);
+  border: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.mode-btn:not(:last-child) {
+  border-right: 1.5px solid var(--border);
+}
+
+.mode-btn.active {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* ============================================================
+   GENERATE MODE
+   ============================================================ */
+
+.generate-hint {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+#generate-input {
+  width: 100%;
+  min-height: 120px;
+  flex: 1;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  font-size: 16px;
+  font-family: inherit;
+  color: var(--text);
+  resize: none;
+  outline: none;
+  -webkit-appearance: none;
+  line-height: 1.5;
+  transition: border-color 0.15s ease;
+}
+
+#generate-input:focus {
+  border-color: var(--primary);
+}
+
+#generate-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* ============================================================
    USER PILL & BADGE
    ============================================================ */
 
