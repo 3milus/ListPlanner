@@ -14,8 +14,8 @@ const PALETTE = [
 // DEFAULT SECTIONS
 // ============================================================
 
-function createDefaultSections() {
-  const defs = [
+const SECTION_PRESETS = {
+  en: [
     { name: 'Produce',            color: '#2A9D8F' },
     { name: 'Bakery & Bread',     color: '#E9C46A' },
     { name: 'Dairy & Eggs',       color: '#457B9D' },
@@ -26,8 +26,24 @@ function createDefaultSections() {
     { name: 'Snacks & Sweets',    color: '#F72585' },
     { name: 'Health & Beauty',    color: '#06D6A0' },
     { name: 'Household',          color: '#6C757D' },
-  ];
-  return defs.map((d, i) => ({ id: uid(), name: d.name, color: d.color, order: i }));
+  ],
+  da: [
+    { name: 'Frugt & Grønt',      color: '#2A9D8F' },
+    { name: 'Bageri & Brød',      color: '#E9C46A' },
+    { name: 'Mejeri & Æg',        color: '#457B9D' },
+    { name: 'Kød & Fisk',         color: '#E76F51' },
+    { name: 'Frysevarer',         color: '#4CC9F0' },
+    { name: 'Kolonial & Tørvarer', color: '#F4A261' },
+    { name: 'Drikkevarer',        color: '#7B2FBE' },
+    { name: 'Snacks & Slik',      color: '#F72585' },
+    { name: 'Helse & Skønhed',    color: '#06D6A0' },
+    { name: 'Husholdning',        color: '#6C757D' },
+  ],
+};
+
+function createDefaultSections() {
+  const lang = state.sectionLang || 'en';
+  return SECTION_PRESETS[lang].map((d, i) => ({ id: uid(), name: d.name, color: d.color, order: i }));
 }
 
 // ============================================================
@@ -38,6 +54,7 @@ let state = {
   sections: [],
   apiKey: '',
   apiProvider: 'openai', // 'openai' | 'gemini'
+  sectionLang: 'en',    // 'en' | 'da'
 };
 
 let ui = {
@@ -70,6 +87,7 @@ function loadState() {
       }
       if (parsed.apiKey)      state.apiKey      = parsed.apiKey;
       if (parsed.apiProvider) state.apiProvider = parsed.apiProvider;
+      if (parsed.sectionLang) state.sectionLang = parsed.sectionLang;
     }
   } catch (e) {
     console.error('Failed to load state:', e);
@@ -82,6 +100,7 @@ function saveState() {
       sections:    state.sections,
       apiKey:      state.apiKey,
       apiProvider: state.apiProvider,
+      sectionLang: state.sectionLang,
     }));
   } catch (e) {
     console.error('Failed to save state:', e);
@@ -149,7 +168,7 @@ function buildPrompt(items) {
   const sectionList = sections.map((s, i) => `${i + 1}. ${s.name}`).join('\n');
   const itemList = items.map(item => `- ${item}`).join('\n');
 
-  return `You are a grocery store assistant. Categorize each grocery item into the most appropriate store section.
+  return `You are a grocery store assistant. Categorize each grocery item into the most appropriate store section. Items may be in any language — Danish, English, or others — categorize them correctly regardless of language.
 
 Store sections (in the order they appear in the store):
 ${sectionList}
@@ -159,7 +178,7 @@ ${itemList}
 
 Respond ONLY with a valid JSON object. Each key must be the exact grocery item text as given, and each value must be the exact section name from the list above. If an item does not fit any section, use "Uncategorized".
 
-Example: {"apples": "Produce", "shampoo": "Health & Beauty"}`;
+Example: {"æbler": "Produce", "rugbrød": "Bakery & Bread", "shampoo": "Health & Beauty"}`;
 }
 
 async function callOpenAI(prompt) {
@@ -431,6 +450,19 @@ function getApiSettingsHtml() {
       <h3 class="settings-title">AI Settings</h3>
       <p class="settings-desc">API used to categorize your grocery list</p>
 
+      <div class="form-group">
+        <span class="form-label">Default section language</span>
+        <div class="provider-toggle">
+          <button class="provider-btn${state.sectionLang === 'en' ? ' active' : ''}" data-lang="en">
+            English
+          </button>
+          <button class="provider-btn${state.sectionLang === 'da' ? ' active' : ''}" data-lang="da">
+            Dansk
+          </button>
+        </div>
+        <button class="btn-reset-sections" id="btn-reset-sections">Reset sections to defaults</button>
+      </div>
+
       <div class="provider-toggle">
         <button class="provider-btn${!isGemini ? ' active' : ''}" data-provider="openai">
           OpenAI
@@ -693,6 +725,25 @@ function setupEventListeners() {
       state.apiProvider = providerBtn.dataset.provider;
       saveState();
       renderSectionsView();
+      return;
+    }
+
+    // Language toggle (also matched via .provider-btn, checked after provider)
+    if (providerBtn && providerBtn.dataset.lang) {
+      state.sectionLang = providerBtn.dataset.lang;
+      saveState();
+      renderSectionsView();
+      return;
+    }
+
+
+    // Reset sections to defaults
+    if (e.target.id === 'btn-reset-sections') {
+      if (confirm('Reset all sections to the default list? Your current sections will be replaced.')) {
+        state.sections = createDefaultSections();
+        saveState();
+        renderSectionsView();
+      }
       return;
     }
 

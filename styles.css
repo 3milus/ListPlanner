@@ -910,3 +910,20 @@ html, body {
   color: #2A9D8F;
   font-weight: 500;
 }
+
+.btn-reset-sections {
+  margin-top: 4px;
+  background: none;
+  border: none;
+  color: #FF3B30;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  -webkit-appearance: none;
+}
+
+.btn-reset-sections:active {
+  opacity: 0.6;
+}
