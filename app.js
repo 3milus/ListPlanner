@@ -45,6 +45,7 @@ let ui = {
   selectedPresetId: null,
   sortedResult: null,
   checkedItems: {},       // sort view: { key: 'Emil'|'Rebecca' }
+  assignments: {},        // sort view: { key: 'Emil'|'Rebecca' }
   presetsSubView: 'list',
   editingPresetId: null,
   modalMode: null,
@@ -448,7 +449,7 @@ function renderResults() {
     const items = ui.sortedResult[s.id] || [];
     if (items.length > 0) {
       totalCategorized += items.length;
-      html += renderSectionCard(s, items, ui.checkedItems);
+      html += renderSectionCard(s, items, ui.checkedItems, ui.assignments);
     }
   });
 
@@ -464,9 +465,10 @@ function renderResults() {
   container.innerHTML = html;
 }
 
-function renderSectionCard(section, items, checkedItems) {
+function renderSectionCard(section, items, checkedItems, assignments) {
   const tintColor = hexToRgba(section.color, 0.12);
   const checked = checkedItems || {};
+  const assigns = assignments || {};
   const checkedCount = items.filter(item => checked[`${section.id}::${item}`]).length;
 
   const itemsHtml = items.map(item => {
@@ -475,6 +477,7 @@ function renderSectionCard(section, items, checkedItems) {
     const isChecked = !!checker;
     const eItem   = escapeHtml(item);
     const eKey    = escapeHtml(key);
+    const assignee = assigns[key];
     const badge   = checker
       ? `<span class="user-badge" style="background:${USER_COLORS[checker] || '#888'}" title="${escapeHtml(checker)}">${escapeHtml(checker[0])}</span>`
       : '';
@@ -482,6 +485,7 @@ function renderSectionCard(section, items, checkedItems) {
       <li class="checklist-item${isChecked ? ' checked' : ''}" data-key="${eKey}">
         <input type="checkbox" id="cb-${eKey}" ${isChecked ? 'checked' : ''} data-key="${eKey}" />
         <label for="cb-${eKey}">${eItem}</label>
+        ${assignBtnHtml(key, assignee, null)}
         ${badge}
       </li>
     `;
@@ -578,7 +582,7 @@ function renderListCard(list) {
     sections.forEach(s => {
       const sectionItems = items[s.id] || [];
       if (sectionItems.length > 0) {
-        cardsHtml += renderListSectionCard(list.id, s, sectionItems, checked);
+        cardsHtml += renderListSectionCard(list.id, s, sectionItems, checked, list.assignments || {});
       }
     });
 
@@ -623,9 +627,10 @@ function renderListCard(list) {
   `;
 }
 
-function renderListSectionCard(listId, section, items, checkedItems) {
+function renderListSectionCard(listId, section, items, checkedItems, assignments) {
   const tintColor = hexToRgba(section.color, 0.12);
   const checked = checkedItems || {};
+  const assigns = assignments || {};
   const checkedCount = items.filter(item => checked[`${section.id}::${item}`]).length;
 
   const itemsHtml = items.map(item => {
@@ -635,6 +640,7 @@ function renderListSectionCard(listId, section, items, checkedItems) {
     const eItem   = escapeHtml(item);
     const eKey    = escapeHtml(key);
     const eLid    = escapeHtml(listId);
+    const assignee = assigns[key];
     const badge   = checker
       ? `<span class="user-badge" style="background:${USER_COLORS[checker] || '#888'}" title="${escapeHtml(checker)}">${escapeHtml(checker[0])}</span>`
       : '';
@@ -642,6 +648,7 @@ function renderListSectionCard(listId, section, items, checkedItems) {
       <li class="checklist-item${isChecked ? ' checked' : ''}" data-key="${eKey}">
         <input type="checkbox" id="lcb-${eLid}-${eKey}" ${isChecked ? 'checked' : ''} data-key="${eKey}" data-list-id="${eLid}" data-action="toggle-check" />
         <label for="lcb-${eLid}-${eKey}">${eItem}</label>
+        ${assignBtnHtml(key, assignee, listId)}
         ${badge}
       </li>
     `;
@@ -984,10 +991,10 @@ function openPresetModal(mode) {
   if (mode === 'rename-preset') {
     const preset = getPreset(ui.editingPresetId);
     if (!preset) return;
-    if (titleEl) titleEl.textContent = 'Rename Preset';
+    if (titleEl) titleEl.textContent = 'Rename List Type';
     if (input) input.value = preset.name;
   } else {
-    if (titleEl) titleEl.textContent = 'New Preset';
+    if (titleEl) titleEl.textContent = 'New List Type';
     if (input) input.value = '';
   }
 
@@ -1072,10 +1079,8 @@ function setupEventListeners() {
   document.getElementById('app').addEventListener('click', (e) => {
     const btn = e.target.closest('.btn-switch-user');
     if (!btn) return;
-    const idx = USERS.indexOf(state.currentUser);
-    state.currentUser = USERS[(idx + 1) % USERS.length];
-    saveState();
-    renderUserPills();
+    sessionStorage.removeItem('loggedIn');
+    showLogin();
   });
 
   // BOTTOM NAV
@@ -1085,6 +1090,18 @@ function setupEventListeners() {
     const view = tab.dataset.view;
     if (!view || view === ui.view) return;
     switchView(view);
+  });
+
+  // LOGIN SCREEN
+  document.getElementById('login-screen').addEventListener('click', (e) => {
+    const card = e.target.closest('.login-user-card');
+    if (!card) return;
+    state.currentUser = card.dataset.user;
+    sessionStorage.setItem('loggedIn', '1');
+    saveState();
+    hideLogin();
+    renderUserPills();
+    render();
   });
 
   // MODE TOGGLE (Paste / Generate)
@@ -1122,6 +1139,7 @@ function setupEventListeners() {
       result._presetId  = preset.id;
       ui.sortedResult   = result;
       ui.checkedItems   = {};
+      ui.assignments    = {};
       ui.sortPhase      = 'results';
 
       const nameInput = document.getElementById('list-name-input');
@@ -1178,6 +1196,7 @@ function setupEventListeners() {
       result._presetId = preset.id;
       ui.sortedResult = result;
       ui.checkedItems = {};
+      ui.assignments  = {};
       ui.sortPhase = 'results';
 
       // Pre-fill name input
@@ -1199,6 +1218,7 @@ function setupEventListeners() {
     ui.sortPhase    = 'input';
     ui.sortedResult = null;
     ui.checkedItems = {};
+    ui.assignments  = {};
     const textarea  = document.getElementById('list-input');
     if (textarea) textarea.value = '';
     const genInput  = document.getElementById('generate-input');
@@ -1236,12 +1256,32 @@ function setupEventListeners() {
     }
   });
 
-  // SORT results: assign uncategorized
+  // SORT results: assign uncategorized + item assignment
   document.getElementById('phase-results').addEventListener('click', (e) => {
-    const assignBtn = e.target.closest('.assign-btn');
-    if (!assignBtn) return;
-    const itemText = assignBtn.dataset.item;
-    const row = assignBtn.closest('.uncategorized-item');
+    // Item assignment cycling
+    const assignBtn = e.target.closest('.item-assign-btn[data-action="assign-item"]');
+    if (assignBtn && !assignBtn.dataset.listId) {
+      const key = assignBtn.dataset.key;
+      const cycle = [undefined, ...USERS];
+      const current = ui.assignments[key];
+      const idx = cycle.indexOf(current);
+      const next = cycle[(idx + 1) % cycle.length];
+      if (next) ui.assignments[key] = next; else delete ui.assignments[key];
+      const color = next ? (USER_COLORS[next] || '#888') : null;
+      assignBtn.style.background = color || '';
+      assignBtn.style.borderColor = color ? 'transparent' : '';
+      assignBtn.style.color = color ? '#fff' : '';
+      assignBtn.textContent = next ? next[0] : '';
+      assignBtn.title = next ? `Assigned to ${next}` : 'Assign to someone';
+      assignBtn.classList.toggle('assigned', !!next);
+      return;
+    }
+
+    // Assign uncategorized
+    const uncatBtn = e.target.closest('.assign-btn');
+    if (!uncatBtn) return;
+    const itemText = uncatBtn.dataset.item;
+    const row = uncatBtn.closest('.uncategorized-item');
     const select = row ? row.querySelector('.assign-select') : null;
     const sectionId = select ? select.value : '';
     if (!sectionId || !ui.sortedResult) return;
@@ -1284,6 +1324,7 @@ function setupEventListeners() {
       sections: sectionSnapshot,
       items: itemsObj,
       checkedItems: {},
+      assignments: { ...ui.assignments },
       createdAt: new Date().toISOString(),
     };
 
@@ -1329,11 +1370,11 @@ function setupEventListeners() {
     }
 
     // Assign uncategorized item in a saved list
-    const assignBtn = e.target.closest('[data-action="assign-list-item"]');
-    if (assignBtn) {
-      const listId = assignBtn.dataset.listId;
-      const itemText = assignBtn.dataset.item;
-      const row = assignBtn.closest('.uncategorized-item');
+    const uncatAssignBtn = e.target.closest('[data-action="assign-list-item"]');
+    if (uncatAssignBtn) {
+      const listId = uncatAssignBtn.dataset.listId;
+      const itemText = uncatAssignBtn.dataset.item;
+      const row = uncatAssignBtn.closest('.uncategorized-item');
       const select = row ? row.querySelector('.assign-select') : null;
       const sectionId = select ? select.value : '';
       if (!sectionId) return;
@@ -1346,6 +1387,30 @@ function setupEventListeners() {
       list.items[sectionId].push(itemText);
       saveState();
       renderListsView();
+      return;
+    }
+
+    // Item assignment in saved lists
+    const assignBtn = e.target.closest('.item-assign-btn[data-action="assign-item"]');
+    if (assignBtn && assignBtn.dataset.listId) {
+      const key = assignBtn.dataset.key;
+      const listId = assignBtn.dataset.listId;
+      const list = state.lists.find(l => l.id === listId);
+      if (!list) return;
+      if (!list.assignments) list.assignments = {};
+      const cycle = [undefined, ...USERS];
+      const current = list.assignments[key];
+      const idx = cycle.indexOf(current);
+      const next = cycle[(idx + 1) % cycle.length];
+      if (next) list.assignments[key] = next; else delete list.assignments[key];
+      const color = next ? (USER_COLORS[next] || '#888') : null;
+      assignBtn.style.background = color || '';
+      assignBtn.style.borderColor = color ? 'transparent' : '';
+      assignBtn.style.color = color ? '#fff' : '';
+      assignBtn.textContent = next ? next[0] : '';
+      assignBtn.title = next ? `Assigned to ${next}` : 'Assign to someone';
+      assignBtn.classList.toggle('assigned', !!next);
+      saveState();
       return;
     }
 
@@ -1449,7 +1514,7 @@ function setupEventListeners() {
         if (!preset) return;
         const usedCount = state.lists.filter(l => l.presetId === presetId).length;
         let msg = `Delete "${preset.name}"?`;
-        if (usedCount > 0) msg += ` ${usedCount} saved list${usedCount !== 1 ? 's' : ''} use this preset.`;
+        if (usedCount > 0) msg += ` ${usedCount} saved list${usedCount !== 1 ? 's' : ''} use this list type.`;
         msg += ' This cannot be undone.';
         if (!confirm(msg)) return;
         state.presets = state.presets.filter(p => p.id !== presetId);
@@ -1627,6 +1692,36 @@ function handleMoveSection(sectionId, direction) {
 }
 
 // ============================================================
+// LOGIN HELPERS
+// ============================================================
+
+function showLogin() {
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+  document.querySelector('.bottom-nav').classList.add('hidden');
+}
+
+function hideLogin() {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.querySelector('.bottom-nav').classList.remove('hidden');
+}
+
+// ============================================================
+// ITEM ASSIGNMENT BUTTON
+// ============================================================
+
+function assignBtnHtml(key, assignee, listId) {
+  const color = assignee ? (USER_COLORS[assignee] || '#888') : null;
+  const style = color
+    ? `background:${color};border-color:transparent;color:#fff;`
+    : '';
+  const text = assignee ? escapeHtml(assignee[0]) : '';
+  const listAttr = listId ? ` data-list-id="${escapeHtml(listId)}"` : '';
+  return `<button class="item-assign-btn${assignee ? ' assigned' : ''}" data-key="${escapeHtml(key)}" data-action="assign-item"${listAttr} style="${style}" title="${assignee ? `Assigned to ${escapeHtml(assignee)}` : 'Assign to someone'}">${text}</button>`;
+}
+
+// ============================================================
 // INIT
 // ============================================================
 
@@ -1651,6 +1746,12 @@ function init() {
 
   setupEventListeners();
   render();
+
+  if (!sessionStorage.getItem('loggedIn')) {
+    showLogin();
+  } else {
+    renderUserPills();
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);

@@ -14,6 +14,22 @@
   <title>ListPlanner</title>
 </head>
 <body>
+  <div id="login-screen">
+    <div class="login-container">
+      <h1 class="login-title">ListPlanner</h1>
+      <p class="login-subtitle">Who are you?</p>
+      <div class="login-users">
+        <button class="login-user-card" data-user="Emil">
+          <div class="login-avatar" style="background:#457B9D">E</div>
+          <span>Emil</span>
+        </button>
+        <button class="login-user-card" data-user="Rebecca">
+          <div class="login-avatar" style="background:#E76F51">R</div>
+          <span>Rebecca</span>
+        </button>
+      </div>
+    </div>
+  </div>
   <div id="app">
 
     <!-- ===================== SORT VIEW ===================== -->
@@ -71,7 +87,7 @@
       <div id="presets-list-view">
         <header class="header">
           <div style="width:72px;"></div>
-          <h1 class="header-title">Presets</h1>
+          <h1 class="header-title">List Types</h1>
           <button id="btn-add-preset" class="btn-ghost">+ Add</button>
         </header>
         <div id="presets-list"></div>
@@ -131,7 +147,7 @@
         <line x1="9" y1="8" x2="15" y2="8"/>
         <line x1="17" y1="16" x2="23" y2="16"/>
       </svg>
-      <span>Presets</span>
+      <span>List Types</span>
     </button>
   </nav>
 

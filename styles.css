@@ -1212,3 +1212,108 @@ html, body {
   flex-shrink: 0;
   margin-left: 4px;
 }
+
+/* ============================================================
+   LOGIN SCREEN
+   ============================================================ */
+
+#login-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: env(safe-area-inset-top) 24px env(safe-area-inset-bottom);
+}
+#login-screen.hidden { display: none; }
+
+.login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 320px;
+}
+.login-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: -0.5px;
+}
+.login-subtitle {
+  font-size: 17px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.login-users {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+}
+.login-user-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 16px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  font-family: inherit;
+  -webkit-appearance: none;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.login-user-card:active {
+  border-color: var(--primary);
+  transform: scale(0.97);
+}
+.login-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+/* ============================================================
+   ITEM ASSIGNMENT BUTTON
+   ============================================================ */
+
+.item-assign-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-appearance: none;
+  padding: 0;
+  transition: border-color 0.15s, background-color 0.15s;
+  margin-right: 4px;
+}
+.item-assign-btn:active {
+  opacity: 0.7;
+}
+.item-assign-btn.assigned {
+  border-color: transparent;
+}
