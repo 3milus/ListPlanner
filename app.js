@@ -56,6 +56,7 @@ let ui = {
   modalDraft: null,
   presetModalMode: null,
   expandedListIds: {},
+  movingItem: null,   // { listId, sectionId, item } while move-picker is open
 };
 
 // ============================================================
@@ -693,7 +694,7 @@ function renderListCard(list) {
     sections.forEach(s => {
       const sectionItems = items[s.id] || [];
       if (sectionItems.length > 0) {
-        cardsHtml += renderListSectionCard(list.id, s, sectionItems, checked, list.assignments || {});
+        cardsHtml += renderListSectionCard(list.id, s, sectionItems, checked, list.assignments || {}, list.sections || []);
       }
     });
 
@@ -728,6 +729,12 @@ function renderListCard(list) {
               <polyline points="6 9 12 15 18 9"/>
             </svg>
           </button>
+          <button class="icon-btn" data-action="rename-list" data-list-id="${escapeHtml(list.id)}" aria-label="Rename" title="Rename list">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
           <button class="icon-btn${isClosed ? ' reopen-btn' : ''}" data-action="toggle-close-list" data-list-id="${escapeHtml(list.id)}" aria-label="${closeTitle}" title="${closeTitle}">
             ${closeIcon}
           </button>
@@ -746,11 +753,12 @@ function renderListCard(list) {
   `;
 }
 
-function renderListSectionCard(listId, section, items, checkedItems, assignments) {
+function renderListSectionCard(listId, section, items, checkedItems, assignments, allSections) {
   const tintColor = hexToRgba(section.color, 0.12);
   const checked = checkedItems || {};
   const assigns = assignments || {};
   const checkedCount = items.filter(item => checked[`${section.id}::${item}`]).length;
+  const otherSections = (allSections || []).filter(s => s.id !== section.id);
 
   const itemsHtml = items.map(item => {
     const key     = `${section.id}::${item}`;
@@ -759,16 +767,42 @@ function renderListSectionCard(listId, section, items, checkedItems, assignments
     const eItem   = escapeHtml(item);
     const eKey    = escapeHtml(key);
     const eLid    = escapeHtml(listId);
+    const eSid    = escapeHtml(section.id);
     const assignee = assigns[key];
     const badge   = checker
       ? `<span class="user-badge" style="background:${USER_COLORS[checker] || '#888'}" title="${escapeHtml(checker)}">${escapeHtml(checker[0])}</span>`
       : '';
+
+    const mv = ui.movingItem;
+    const isMoving = mv && mv.listId === listId && mv.sectionId === section.id && mv.item === item;
+    const movePicker = isMoving
+      ? `<div class="move-picker">
+           <button class="move-cancel" data-action="cancel-move" aria-label="Cancel">✕</button>
+           ${otherSections.map(s =>
+               `<button class="move-target-chip" data-action="move-item-to"
+                  data-list-id="${eLid}" data-from-section="${eSid}"
+                  data-to-section="${escapeHtml(s.id)}" data-item="${eItem}"
+                  style="border-color:${s.color};color:${s.color}">${escapeHtml(s.name)}</button>`
+             ).join('')}
+         </div>`
+      : '';
+
     return `
-      <li class="checklist-item${isChecked ? ' checked' : ''}" data-key="${eKey}">
-        <input type="checkbox" id="lcb-${eLid}-${eKey}" ${isChecked ? 'checked' : ''} data-key="${eKey}" data-list-id="${eLid}" data-action="toggle-check" />
-        <label for="lcb-${eLid}-${eKey}">${eItem}</label>
-        ${assignBtnHtml(key, assignee, listId)}
-        ${badge}
+      <li class="checklist-item${isChecked ? ' checked' : ''}${isMoving ? ' moving' : ''}" data-key="${eKey}">
+        <div class="checklist-item-row">
+          <input type="checkbox" id="lcb-${eLid}-${eKey}" ${isChecked ? 'checked' : ''} data-key="${eKey}" data-list-id="${eLid}" data-action="toggle-check" />
+          <label for="lcb-${eLid}-${eKey}">${eItem}</label>
+          <button class="item-move-btn${isMoving ? ' active' : ''}" data-action="start-move-item"
+            data-list-id="${eLid}" data-section-id="${eSid}" data-item="${eItem}" aria-label="Move item" title="Move to another section">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="5 9 2 12 5 15"/><polyline points="19 9 22 12 19 15"/>
+              <line x1="2" y1="12" x2="22" y2="12"/>
+            </svg>
+          </button>
+          ${assignBtnHtml(key, assignee, listId)}
+          ${badge}
+        </div>
+        ${movePicker}
       </li>
     `;
   }).join('');
@@ -1480,6 +1514,62 @@ function setupEventListeners() {
     if (expandBtn) {
       const listId = expandBtn.dataset.listId;
       ui.expandedListIds[listId] = !ui.expandedListIds[listId];
+      renderListsView();
+      return;
+    }
+
+    // Rename list (pencil button)
+    if (e.target.closest('[data-action="rename-list"]')) {
+      const listId = e.target.closest('[data-action="rename-list"]').dataset.listId;
+      const nameEl = document.querySelector(`.list-card-name[data-list-name-id="${listId}"]`);
+      if (nameEl && !nameEl.classList.contains('editing')) nameEl.click();
+      return;
+    }
+
+    // Start moving an item
+    const moveTrigger = e.target.closest('[data-action="start-move-item"]');
+    if (moveTrigger) {
+      const { listId, sectionId, item } = moveTrigger.dataset;
+      const mv = ui.movingItem;
+      ui.movingItem = (mv && mv.listId === listId && mv.sectionId === sectionId && mv.item === item)
+        ? null : { listId, sectionId, item };
+      renderListsView();
+      return;
+    }
+
+    // Cancel move
+    if (e.target.closest('[data-action="cancel-move"]')) {
+      ui.movingItem = null;
+      renderListsView();
+      return;
+    }
+
+    // Execute move to a section
+    const moveTarget = e.target.closest('[data-action="move-item-to"]');
+    if (moveTarget) {
+      const { listId, fromSection, toSection, item } = moveTarget.dataset;
+      const list = state.lists.find(l => l.id === listId);
+      if (!list) return;
+
+      // Move the item
+      list.items[fromSection] = (list.items[fromSection] || []).filter(i => i !== item);
+      if (!list.items[toSection]) list.items[toSection] = [];
+      list.items[toSection].push(item);
+
+      // Transfer checked state and assignment to new key
+      const oldKey = `${fromSection}::${item}`;
+      const newKey = `${toSection}::${item}`;
+      if (list.checkedItems && list.checkedItems[oldKey] !== undefined) {
+        list.checkedItems[newKey] = list.checkedItems[oldKey];
+        delete list.checkedItems[oldKey];
+      }
+      if (list.assignments && list.assignments[oldKey] !== undefined) {
+        list.assignments[newKey] = list.assignments[oldKey];
+        delete list.assignments[oldKey];
+      }
+
+      ui.movingItem = null;
+      saveState();
       renderListsView();
       return;
     }

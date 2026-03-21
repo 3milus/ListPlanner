@@ -429,17 +429,27 @@ html, body {
 
 .checklist-item {
   display: flex;
-  align-items: center;
-  min-height: 48px;
-  padding: 0 14px;
+  flex-direction: column;
   border-top: 1px solid var(--border);
-  gap: 12px;
-  cursor: pointer;
   transition: background-color 0.1s ease;
 }
 
 .checklist-item:active {
   background-color: var(--bg);
+}
+
+.checklist-item.moving {
+  background-color: var(--bg);
+}
+
+.checklist-item-row {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 14px;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .checklist-item input[type="checkbox"] {
@@ -465,6 +475,58 @@ html, body {
   text-decoration: line-through;
   opacity: 0.45;
   color: var(--text-muted);
+}
+
+.item-move-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+  opacity: 0.45;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.item-move-btn:active,
+.item-move-btn.active {
+  opacity: 1;
+  color: var(--primary);
+}
+
+.move-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 14px 10px;
+  border-top: 1px solid var(--border);
+}
+
+.move-target-chip {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1.5px solid;
+  background: transparent;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.move-target-chip:active {
+  opacity: 0.6;
+}
+
+.move-cancel {
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
 }
 
 /* ============================================================
