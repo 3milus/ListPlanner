@@ -10,6 +10,9 @@ const PALETTE = [
   '#06D6A0', '#6C757D',
 ];
 
+const USERS = ['Emil', 'Rebecca'];
+const USER_COLORS = { Emil: '#457B9D', Rebecca: '#E76F51' };
+
 const DEFAULT_SECTIONS = [
   { name: 'Frugt & Grønt',        color: '#2A9D8F' },
   { name: 'Bageri & Brød',        color: '#E9C46A' },
@@ -32,6 +35,7 @@ let state = {
   lists: [],
   apiKey: '',
   apiProvider: 'openai',
+  currentUser: 'Emil',
 };
 
 let ui = {
@@ -39,6 +43,7 @@ let ui = {
   sortPhase: 'input',
   selectedPresetId: null,
   sortedResult: null,
+  checkedItems: {},       // sort view: { key: 'Emil'|'Rebecca' }
   presetsSubView: 'list',
   editingPresetId: null,
   modalMode: null,
@@ -115,6 +120,7 @@ function loadState() {
       if (parsed.lists && Array.isArray(parsed.lists)) state.lists = parsed.lists;
       if (parsed.apiKey) state.apiKey = parsed.apiKey;
       if (parsed.apiProvider) state.apiProvider = parsed.apiProvider;
+      if (parsed.currentUser && USERS.includes(parsed.currentUser)) state.currentUser = parsed.currentUser;
       return;
     }
 
@@ -153,6 +159,7 @@ function saveState() {
       lists: state.lists,
       apiKey: state.apiKey,
       apiProvider: state.apiProvider,
+      currentUser: state.currentUser,
     }));
   } catch (e) {
     console.error('Failed to save state:', e);
@@ -283,8 +290,16 @@ async function sortWithLLM(items, sections) {
 // RENDER: SORT VIEW
 // ============================================================
 
+function renderUserPills() {
+  const color = USER_COLORS[state.currentUser] || '#888';
+  const initial = state.currentUser[0];
+  const html = `<span class="user-pill-dot" style="background:${color}">${initial}</span>${escapeHtml(state.currentUser)}`;
+  document.querySelectorAll('.btn-switch-user').forEach(btn => { btn.innerHTML = html; });
+}
+
 function renderSortView() {
   renderPresetPicker();
+  renderUserPills();
 
   const phaseInput   = document.getElementById('phase-input');
   const phaseResults = document.getElementById('phase-results');
@@ -346,7 +361,7 @@ function renderResults() {
     const items = ui.sortedResult[s.id] || [];
     if (items.length > 0) {
       totalCategorized += items.length;
-      html += renderSectionCard(s, items, null);
+      html += renderSectionCard(s, items, ui.checkedItems);
     }
   });
 
@@ -368,14 +383,19 @@ function renderSectionCard(section, items, checkedItems) {
   const checkedCount = items.filter(item => checked[`${section.id}::${item}`]).length;
 
   const itemsHtml = items.map(item => {
-    const key = `${section.id}::${item}`;
-    const isChecked = !!checked[key];
-    const eItem = escapeHtml(item);
-    const eKey = escapeHtml(key);
+    const key     = `${section.id}::${item}`;
+    const checker = checked[key];
+    const isChecked = !!checker;
+    const eItem   = escapeHtml(item);
+    const eKey    = escapeHtml(key);
+    const badge   = checker
+      ? `<span class="user-badge" style="background:${USER_COLORS[checker] || '#888'}" title="${escapeHtml(checker)}">${escapeHtml(checker[0])}</span>`
+      : '';
     return `
       <li class="checklist-item${isChecked ? ' checked' : ''}" data-key="${eKey}">
         <input type="checkbox" id="cb-${eKey}" ${isChecked ? 'checked' : ''} data-key="${eKey}" />
         <label for="cb-${eKey}">${eItem}</label>
+        ${badge}
       </li>
     `;
   }).join('');
@@ -522,15 +542,20 @@ function renderListSectionCard(listId, section, items, checkedItems) {
   const checkedCount = items.filter(item => checked[`${section.id}::${item}`]).length;
 
   const itemsHtml = items.map(item => {
-    const key = `${section.id}::${item}`;
-    const isChecked = !!checked[key];
-    const eItem = escapeHtml(item);
-    const eKey = escapeHtml(key);
-    const eLid = escapeHtml(listId);
+    const key     = `${section.id}::${item}`;
+    const checker = checked[key];
+    const isChecked = !!checker;
+    const eItem   = escapeHtml(item);
+    const eKey    = escapeHtml(key);
+    const eLid    = escapeHtml(listId);
+    const badge   = checker
+      ? `<span class="user-badge" style="background:${USER_COLORS[checker] || '#888'}" title="${escapeHtml(checker)}">${escapeHtml(checker[0])}</span>`
+      : '';
     return `
       <li class="checklist-item${isChecked ? ' checked' : ''}" data-key="${eKey}">
         <input type="checkbox" id="lcb-${eLid}-${eKey}" ${isChecked ? 'checked' : ''} data-key="${eKey}" data-list-id="${eLid}" data-action="toggle-check" />
         <label for="lcb-${eLid}-${eKey}">${eItem}</label>
+        ${badge}
       </li>
     `;
   }).join('');
@@ -956,6 +981,16 @@ function render() {
 
 function setupEventListeners() {
 
+  // USER SWITCH (delegated on #app so it works in all views)
+  document.getElementById('app').addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-switch-user');
+    if (!btn) return;
+    const idx = USERS.indexOf(state.currentUser);
+    state.currentUser = USERS[(idx + 1) % USERS.length];
+    saveState();
+    renderUserPills();
+  });
+
   // BOTTOM NAV
   document.querySelector('.bottom-nav').addEventListener('click', (e) => {
     const tab = e.target.closest('.nav-tab');
@@ -1005,6 +1040,7 @@ function setupEventListeners() {
       const result = await sortWithLLM(items, preset.sections);
       result._presetId = preset.id;
       ui.sortedResult = result;
+      ui.checkedItems = {};
       ui.sortPhase = 'results';
 
       // Pre-fill name input
@@ -1033,11 +1069,28 @@ function setupEventListeners() {
   // SORT results: checkbox toggle
   document.getElementById('phase-results').addEventListener('change', (e) => {
     if (e.target.type === 'checkbox' && e.target.dataset.key) {
+      const key  = e.target.dataset.key;
       const item = e.target.closest('.checklist-item');
       if (e.target.checked) {
-        if (item) item.classList.add('checked');
+        ui.checkedItems[key] = state.currentUser;
+        if (item) {
+          item.classList.add('checked');
+          if (!item.querySelector('.user-badge')) {
+            const badge = document.createElement('span');
+            badge.className = 'user-badge';
+            badge.style.background = USER_COLORS[state.currentUser] || '#888';
+            badge.title = state.currentUser;
+            badge.textContent = state.currentUser[0];
+            item.appendChild(badge);
+          }
+        }
       } else {
-        if (item) item.classList.remove('checked');
+        delete ui.checkedItems[key];
+        if (item) {
+          item.classList.remove('checked');
+          const badge = item.querySelector('.user-badge');
+          if (badge) badge.remove();
+        }
       }
       updateSectionBadge(e.target.closest('.section-card'));
     }
@@ -1206,11 +1259,25 @@ function setupEventListeners() {
       const item = e.target.closest('.checklist-item');
 
       if (e.target.checked) {
-        list.checkedItems[key] = true;
-        if (item) item.classList.add('checked');
+        list.checkedItems[key] = state.currentUser;
+        if (item) {
+          item.classList.add('checked');
+          if (!item.querySelector('.user-badge')) {
+            const badge = document.createElement('span');
+            badge.className = 'user-badge';
+            badge.style.background = USER_COLORS[state.currentUser] || '#888';
+            badge.title = state.currentUser;
+            badge.textContent = state.currentUser[0];
+            item.appendChild(badge);
+          }
+        }
       } else {
         delete list.checkedItems[key];
-        if (item) item.classList.remove('checked');
+        if (item) {
+          item.classList.remove('checked');
+          const badge = item.querySelector('.user-badge');
+          if (badge) badge.remove();
+        }
       }
 
       updateSectionBadge(e.target.closest('.section-card'));
