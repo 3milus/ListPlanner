@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="ListPlanner" />
   <meta name="theme-color" content="#2D6A4F" />
-  <meta name="description" content="Sort your grocery list by store sections" />
+  <meta name="description" content="Sort and organise your lists" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <link rel="stylesheet" href="styles.css" />
@@ -15,32 +15,77 @@
 </head>
 <body>
   <div id="app">
+
+    <!-- ===================== SORT VIEW ===================== -->
     <div id="view-sort" class="view">
       <header class="header">
+        <div style="width:72px;"></div>
         <h1 class="header-title">ListPlanner</h1>
         <button id="btn-new-list" class="btn-ghost hidden">New List</button>
       </header>
+
+      <!-- Preset picker sits outside the scrollable phases -->
+      <div class="preset-picker" id="preset-picker"></div>
+
       <div id="phase-input" class="phase">
-        <div class="paste-hint">
-          <p>Copy your list from Reminders, then paste below</p>
-        </div>
-        <textarea id="list-input" placeholder="Paste grocery list here&#10;One item per line"></textarea>
-        <button id="btn-sort" class="btn-primary">Sort List</button>
+        <textarea id="list-input" placeholder="Paste your list here&#10;One item per line"></textarea>
+        <button id="btn-sort" class="btn-primary" disabled>Sort List</button>
       </div>
+
       <div id="phase-results" class="phase hidden">
         <div id="results-container"></div>
+        <div class="save-bar">
+          <input type="text" id="list-name-input" class="form-input" placeholder="List name" autocomplete="off" autocorrect="off" spellcheck="false" />
+          <button id="btn-save-list" class="btn-primary-small">Save</button>
+        </div>
       </div>
     </div>
 
-    <div id="view-sections" class="view hidden">
+    <!-- ===================== LISTS VIEW ===================== -->
+    <div id="view-lists" class="view hidden">
       <header class="header">
-        <h1 class="header-title">Sections</h1>
-        <button id="btn-add-section" class="btn-ghost">+ Add</button>
+        <div style="width:72px;"></div>
+        <h1 class="header-title">Saved Lists</h1>
+        <div style="width:72px;"></div>
       </header>
-      <div id="sections-list"></div>
+      <div id="lists-container"></div>
+    </div>
+
+    <!-- ===================== PRESETS VIEW ===================== -->
+    <div id="view-presets" class="view hidden">
+
+      <!-- Sub-view: list of presets -->
+      <div id="presets-list-view">
+        <header class="header">
+          <div style="width:72px;"></div>
+          <h1 class="header-title">Presets</h1>
+          <button id="btn-add-preset" class="btn-ghost">+ Add</button>
+        </header>
+        <div id="presets-list"></div>
+      </div>
+
+      <!-- Sub-view: preset detail -->
+      <div id="preset-detail-view" class="hidden">
+        <header class="header">
+          <button id="btn-back-presets" class="btn-ghost">Back</button>
+          <div class="preset-name-row">
+            <span id="preset-detail-name" class="header-title-inline"></span>
+            <button id="btn-rename-preset" class="pencil-btn" aria-label="Rename preset">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+          </div>
+          <button id="btn-add-section-to-preset" class="btn-ghost">+ Add</button>
+        </header>
+        <div id="preset-detail-content"></div>
+      </div>
+
     </div>
   </div>
 
+  <!-- ===================== BOTTOM NAV ===================== -->
   <nav class="bottom-nav">
     <button class="nav-tab active" data-view="sort">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -50,7 +95,18 @@
       </svg>
       <span>Sort</span>
     </button>
-    <button class="nav-tab" data-view="sections">
+    <button class="nav-tab" data-view="lists">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="5" cy="6" r="1.5" fill="currentColor" stroke="none"/>
+        <circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+        <circle cx="5" cy="18" r="1.5" fill="currentColor" stroke="none"/>
+        <line x1="9" y1="6" x2="21" y2="6"/>
+        <line x1="9" y1="12" x2="21" y2="12"/>
+        <line x1="9" y1="18" x2="21" y2="18"/>
+      </svg>
+      <span>Lists</span>
+    </button>
+    <button class="nav-tab" data-view="presets">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="4" y1="21" x2="4" y2="14"/>
         <line x1="4" y1="10" x2="4" y2="3"/>
@@ -62,10 +118,11 @@
         <line x1="9" y1="8" x2="15" y2="8"/>
         <line x1="17" y1="16" x2="23" y2="16"/>
       </svg>
-      <span>Sections</span>
+      <span>Presets</span>
     </button>
   </nav>
 
+  <!-- ===================== SECTION MODAL ===================== -->
   <div id="modal-overlay" class="modal-overlay hidden">
     <div id="modal" class="modal">
       <div class="modal-header">
@@ -74,6 +131,31 @@
         <button id="modal-save" class="btn-ghost bold">Save</button>
       </div>
       <div id="modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- ===================== PRESET NAME MODAL ===================== -->
+  <div id="preset-name-modal-overlay" class="modal-overlay hidden">
+    <div id="preset-name-modal" class="modal">
+      <div class="modal-header">
+        <button id="preset-modal-cancel" class="btn-ghost">Cancel</button>
+        <h2 id="preset-modal-title">New Preset</h2>
+        <button id="preset-modal-save" class="btn-ghost bold">Save</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="preset-name-input">Preset Name</label>
+          <input
+            type="text"
+            id="preset-name-input"
+            class="form-input"
+            placeholder="e.g. Grocery Store"
+            autocomplete="off"
+            autocorrect="off"
+            spellcheck="false"
+          />
+        </div>
+      </div>
     </div>
   </div>
 

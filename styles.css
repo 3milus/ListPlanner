@@ -171,6 +171,34 @@ html, body {
   transform: none;
 }
 
+.btn-primary-small {
+  height: 44px;
+  padding: 0 16px;
+  background-color: var(--primary);
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+  -webkit-appearance: none;
+  width: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.btn-primary-small:active {
+  opacity: 0.85;
+  transform: scale(0.98);
+}
+
+.btn-primary-small:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .btn-ghost {
   background: none;
   border: none;
@@ -201,10 +229,53 @@ html, body {
 }
 
 /* ============================================================
+   PRESET PICKER
+   ============================================================ */
+
+.preset-picker {
+  display: flex;
+  overflow-x: auto;
+  gap: 8px;
+  padding: 12px 16px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  flex-shrink: 0;
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.preset-picker::-webkit-scrollbar {
+  display: none;
+}
+
+.preset-chip {
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-appearance: none;
+  font-family: inherit;
+  transition: border-color 0.15s, background-color 0.15s, color 0.15s;
+}
+
+.preset-chip.active {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* ============================================================
    PHASES (SORT VIEW)
    ============================================================ */
 
-.phase {
+#phase-input {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -214,23 +285,53 @@ html, body {
   gap: 16px;
 }
 
-.phase.hidden {
+#phase-input.hidden {
   display: none;
 }
 
-.paste-hint {
-  background-color: var(--surface);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  border: 1px solid var(--border);
+#phase-results {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.paste-hint p {
-  color: var(--text-muted);
-  font-size: 14px;
-  line-height: 1.4;
-  text-align: center;
+#phase-results.hidden {
+  display: none;
 }
+
+#results-container {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ============================================================
+   SAVE BAR
+   ============================================================ */
+
+.save-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.save-bar .form-input {
+  flex: 1;
+  height: 44px;
+}
+
+/* ============================================================
+   TEXTAREA
+   ============================================================ */
 
 #list-input {
   width: 100%;
@@ -259,14 +360,8 @@ html, body {
 }
 
 /* ============================================================
-   RESULTS
+   SECTION CARDS (RESULTS)
    ============================================================ */
-
-#results-container {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
 
 .section-card {
   background-color: var(--surface);
@@ -277,8 +372,7 @@ html, body {
 }
 
 .section-card.uncategorized {
-  border-left: 4px dashed var(--border);
-  border-left-style: dashed;
+  border-left: none;
   box-shadow: none;
   border: 2px dashed var(--border);
   border-radius: var(--radius);
@@ -446,7 +540,186 @@ html, body {
 }
 
 /* ============================================================
-   SECTIONS VIEW
+   LISTS VIEW
+   ============================================================ */
+
+#lists-container {
+  overflow-y: auto;
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.list-card {
+  background-color: var(--surface);
+  border-radius: var(--radius);
+  padding: 14px;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.list-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.list-card-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.list-card-info {
+  flex: 1;
+  overflow: hidden;
+}
+
+.list-card-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.list-card-name.editing {
+  overflow: visible;
+  white-space: normal;
+}
+
+.list-card-name-input {
+  border: none;
+  background: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  width: 100%;
+  outline: none;
+  padding: 0;
+  font-family: inherit;
+}
+
+.list-card-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.list-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.list-card-body {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.list-expand-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.list-expand-btn.expanded svg {
+  transform: rotate(180deg);
+}
+
+/* ============================================================
+   PRESETS VIEW
+   ============================================================ */
+
+#presets-list-view,
+#preset-detail-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+#presets-list-view.hidden,
+#preset-detail-view.hidden {
+  display: none;
+}
+
+#presets-list {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+#preset-detail-content {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+/* Preset name row in detail header */
+.preset-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 180px);
+}
+
+.header-title-inline {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pencil-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  flex-shrink: 0;
+  -webkit-appearance: none;
+  transition: color 0.15s ease, background-color 0.15s ease;
+  padding: 0;
+}
+
+.pencil-btn:active {
+  color: var(--primary);
+  background-color: var(--primary-light);
+}
+
+/* ============================================================
+   SECTION ROWS (PRESETS VIEW)
    ============================================================ */
 
 #sections-list {
@@ -586,12 +859,8 @@ html, body {
 }
 
 @keyframes slideUp {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
 }
 
 .modal-header {
@@ -696,95 +965,6 @@ html, body {
 }
 
 /* ============================================================
-   KEYWORD CHIPS
-   ============================================================ */
-
-.chips-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  min-height: 20px;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background-color: var(--primary-light);
-  color: var(--primary);
-  border-radius: 20px;
-  padding: 5px 10px 5px 12px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.chip-remove {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: none;
-  background-color: rgba(45, 106, 79, 0.2);
-  color: var(--primary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  line-height: 1;
-  padding: 0;
-  transition: background-color 0.15s ease;
-  flex-shrink: 0;
-}
-
-.chip-remove:active {
-  background-color: rgba(45, 106, 79, 0.35);
-}
-
-.keyword-add-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.keyword-input {
-  flex: 1;
-  height: 44px;
-  background-color: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 0 12px;
-  font-size: 15px;
-  font-family: inherit;
-  color: var(--text);
-  outline: none;
-  -webkit-appearance: none;
-  transition: border-color 0.15s ease;
-}
-
-.keyword-input:focus {
-  border-color: var(--primary);
-}
-
-.keyword-add-btn {
-  height: 44px;
-  padding: 0 16px;
-  background-color: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  -webkit-appearance: none;
-  white-space: nowrap;
-  transition: opacity 0.15s ease;
-}
-
-.keyword-add-btn:active {
-  opacity: 0.8;
-}
-
-/* ============================================================
    UTILITY
    ============================================================ */
 
@@ -794,11 +974,6 @@ html, body {
   color: var(--text-muted);
   font-size: 15px;
   line-height: 1.6;
-}
-
-.empty-state-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
 }
 
 /* ============================================================
@@ -909,21 +1084,4 @@ html, body {
 .key-status.saved {
   color: #2A9D8F;
   font-weight: 500;
-}
-
-.btn-reset-sections {
-  margin-top: 4px;
-  background: none;
-  border: none;
-  color: #FF3B30;
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
-  padding: 0;
-  text-align: left;
-  -webkit-appearance: none;
-}
-
-.btn-reset-sections:active {
-  opacity: 0.6;
 }
