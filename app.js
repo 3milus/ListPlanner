@@ -200,9 +200,11 @@ async function loadState() {
     const snap = await db.collection('listplanner').doc('shared').get();
     if (snap.exists) {
       const d = snap.data();
-      if (Array.isArray(d.presets) && d.presets.length) state.presets = d.presets;
-      if (Array.isArray(d.lists))                        state.lists   = d.lists;
-      if (d.pinHash) state.pinHash = d.pinHash;
+      if (Array.isArray(d.presets) && d.presets.length) state.presets    = d.presets;
+      if (Array.isArray(d.lists))                        state.lists      = d.lists;
+      if (d.pinHash)                                     state.pinHash    = d.pinHash;
+      if (d.apiKey)                                      state.apiKey     = d.apiKey;
+      if (d.apiProvider)                                 state.apiProvider = d.apiProvider;
     } else {
       // First ever run — migrate any existing localStorage data then init Firestore
       try {
@@ -238,28 +240,12 @@ function saveState() {
   }
   // Return the Firestore promise so callers can await it if needed
   return db.collection('listplanner').doc('shared').set({
-    presets:  state.presets,
-    lists:    state.lists,
-    pinHash:  state.pinHash,
+    presets:     state.presets,
+    lists:       state.lists,
+    pinHash:     state.pinHash,
+    apiKey:      state.apiKey,
+    apiProvider: state.apiProvider,
   }).catch(e => console.error('Firestore save failed:', e));
-}
-
-function setupRealtimeSync() {
-  if (!db) return;
-  db.collection('listplanner').doc('shared').onSnapshot(snap => {
-    if (!snap.exists || snap.metadata.hasPendingWrites || !ui_appReady) return;
-    const d = snap.data();
-    let changed = false;
-    if (d.presets && JSON.stringify(d.presets) !== JSON.stringify(state.presets)) {
-      state.presets = d.presets;
-      changed = true;
-    }
-    if (d.lists && JSON.stringify(d.lists) !== JSON.stringify(state.lists)) {
-      state.lists = d.lists;
-      changed = true;
-    }
-    if (changed) render();
-  }, e => console.error('Firestore sync error:', e));
 }
 
 // ============================================================
@@ -2035,12 +2021,14 @@ async function doLogin() {
 function setupRealtimeSync() {
   if (!db) return;
   db.collection('listplanner').doc('shared').onSnapshot(snap => {
-    if (!snap.exists || snap.metadata.hasPendingWrites) return;
+    if (!snap.exists || snap.metadata.hasPendingWrites || !ui_appReady) return;
     const d = snap.data();
-    if (Array.isArray(d.presets) && d.presets.length) state.presets = d.presets;
-    if (Array.isArray(d.lists))                        state.lists   = d.lists;
-    if (d.pinHash)                                     state.pinHash = d.pinHash;
-    if (ui_appReady) render();
+    if (Array.isArray(d.presets) && d.presets.length) state.presets     = d.presets;
+    if (Array.isArray(d.lists))                        state.lists       = d.lists;
+    if (d.pinHash)                                     state.pinHash     = d.pinHash;
+    if (d.apiKey)                                      state.apiKey      = d.apiKey;
+    if (d.apiProvider)                                 state.apiProvider = d.apiProvider;
+    render();
   });
 }
 
