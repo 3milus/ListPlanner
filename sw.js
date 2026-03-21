@@ -1,5 +1,5 @@
-const CACHE_NAME = 'listplanner-v1';
-const ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.json'];
+const CACHE_NAME = 'listplanner-v3';
+const ASSETS = ['./index.html', './styles.css', './app.js', './manifest.json', './firebase-config.js'];
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -20,6 +20,15 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Don't intercept Firebase/Google API requests — let them go straight to network
+  const url = event.request.url;
+  if (
+    url.includes('firestore.googleapis.com') ||
+    url.includes('gstatic.com') ||
+    url.includes('googleapis.com')
+  ) {
+    return;
+  }
   event.respondWith(
     caches.match(event.request).then(cached => cached || fetch(event.request))
   );

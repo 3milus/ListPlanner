@@ -10,6 +10,9 @@
   <meta name="description" content="Sort and organise your lists" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon-192.png" />
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
   <link rel="stylesheet" href="styles.css" />
   <title>ListPlanner</title>
 </head>
@@ -27,6 +30,19 @@
           <div class="login-avatar" style="background:#E76F51">R</div>
           <span>Rebecca</span>
         </button>
+      </div>
+      <div class="login-pin-section hidden" id="login-pin-section">
+        <input
+          type="password"
+          inputmode="numeric"
+          maxlength="6"
+          id="login-pin-input"
+          class="login-pin-input"
+          placeholder="Enter PIN"
+          autocomplete="off"
+        />
+        <p class="login-pin-error hidden" id="login-pin-error">Incorrect PIN — try again</p>
+        <button id="login-enter-btn" class="btn-primary">Enter</button>
       </div>
     </div>
   </div>

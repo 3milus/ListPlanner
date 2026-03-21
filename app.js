@@ -13,6 +13,9 @@ const PALETTE = [
 const USERS = ['Emil', 'Rebecca'];
 const USER_COLORS = { Emil: '#457B9D', Rebecca: '#E76F51' };
 
+let db = null;          // Firestore instance (null if not configured)
+let ui_appReady = false; // true once user has successfully logged in
+
 const DEFAULT_SECTIONS = [
   { name: 'Frugt & Grønt',        color: '#2A9D8F' },
   { name: 'Bageri & Brød',        color: '#E9C46A' },
@@ -36,6 +39,7 @@ let state = {
   apiKey: '',
   apiProvider: 'openai',
   currentUser: 'Emil',
+  pinHash: '',
 };
 
 let ui = {
@@ -110,62 +114,143 @@ function getPreset(id) {
 }
 
 // ============================================================
-// PERSISTENCE
+// DEFAULT PRESET
 // ============================================================
 
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed.presets && Array.isArray(parsed.presets)) state.presets = parsed.presets;
-      if (parsed.lists && Array.isArray(parsed.lists)) state.lists = parsed.lists;
-      if (parsed.apiKey) state.apiKey = parsed.apiKey;
-      if (parsed.apiProvider) state.apiProvider = parsed.apiProvider;
-      if (parsed.currentUser && USERS.includes(parsed.currentUser)) state.currentUser = parsed.currentUser;
-      return;
-    }
+function createDefaultPreset() {
+  return {
+    id:       uid(),
+    name:     'Grocery Store',
+    sections: DEFAULT_SECTIONS.map((d, i) => ({ id: uid(), name: d.name, color: d.color, order: i })),
+  };
+}
 
-    // Migrate from v1 if present
-    const v1raw = localStorage.getItem('listplanner_v1');
-    if (v1raw) {
-      const v1 = JSON.parse(v1raw);
-      if (v1.sections && Array.isArray(v1.sections) && !v1.presets) {
-        const migratedSections = v1.sections.map(s => ({
-          id: s.id,
-          name: s.name,
-          color: s.color,
-          order: s.order,
-        }));
-        const migratedPreset = {
-          id: uid(),
-          name: 'My Store',
-          sections: migratedSections,
-        };
-        state.presets = [migratedPreset];
-        if (v1.apiKey) state.apiKey = v1.apiKey;
-        if (v1.apiProvider) state.apiProvider = v1.apiProvider;
-        saveState();
-        return;
+// ============================================================
+// FIREBASE & PERSISTENCE
+// ============================================================
+
+function initFirebase() {
+  const cfg = window.FIREBASE_CONFIG;
+  if (!cfg || cfg.projectId === 'YOUR_PROJECT_ID') {
+    console.warn('Firebase not configured — falling back to localStorage');
+    return false;
+  }
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    db = firebase.firestore();
+    return true;
+  } catch (e) {
+    console.error('Firebase init error:', e);
+    return false;
+  }
+}
+
+async function hashPin(pin) {
+  const data = new TextEncoder().encode(String(pin).trim() + '_lp_salt_v1');
+  const buf  = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function verifyPin(entered) {
+  if (!state.pinHash) return false;
+  return (await hashPin(entered)) === state.pinHash;
+}
+
+function saveLocalState() {
+  try {
+    localStorage.setItem('lp_local', JSON.stringify({
+      currentUser: state.currentUser,
+      apiKey:      state.apiKey,
+      apiProvider: state.apiProvider,
+    }));
+  } catch (e) {}
+}
+
+function loadLocalState() {
+  try {
+    const raw = localStorage.getItem('lp_local');
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (d.currentUser && USERS.includes(d.currentUser)) state.currentUser = d.currentUser;
+    if (d.apiKey)      state.apiKey      = d.apiKey;
+    if (d.apiProvider) state.apiProvider = d.apiProvider;
+  } catch (e) {}
+}
+
+async function loadState() {
+  loadLocalState();
+
+  if (!db) {
+    // Fallback: old localStorage format
+    try {
+      const raw = localStorage.getItem('listplanner_v2');
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (Array.isArray(d.presets)) state.presets = d.presets;
+        if (Array.isArray(d.lists))   state.lists   = d.lists;
+        if (d.apiKey)      state.apiKey      = d.apiKey;
+        if (d.apiProvider) state.apiProvider = d.apiProvider;
       }
+    } catch (e) {}
+    return;
+  }
+
+  try {
+    const snap = await db.collection('listplanner').doc('shared').get();
+    if (snap.exists) {
+      const d = snap.data();
+      if (Array.isArray(d.presets) && d.presets.length) state.presets = d.presets;
+      if (Array.isArray(d.lists))                        state.lists   = d.lists;
+      if (d.pinHash) state.pinHash = d.pinHash;
+    } else {
+      // First ever run — initialise Firestore document
+      if (state.presets.length === 0) state.presets = [createDefaultPreset()];
+      state.pinHash = await hashPin('1981');
+      await saveState();
     }
   } catch (e) {
-    console.error('Failed to load state:', e);
+    console.error('Firestore load failed:', e);
   }
 }
 
 function saveState() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      presets: state.presets,
-      lists: state.lists,
-      apiKey: state.apiKey,
-      apiProvider: state.apiProvider,
-      currentUser: state.currentUser,
-    }));
-  } catch (e) {
-    console.error('Failed to save state:', e);
+  saveLocalState();
+  if (!db) {
+    // Fallback to localStorage
+    try {
+      localStorage.setItem('listplanner_v2', JSON.stringify({
+        presets:     state.presets,
+        lists:       state.lists,
+        apiKey:      state.apiKey,
+        apiProvider: state.apiProvider,
+      }));
+    } catch (e) {}
+    return;
   }
+  // Return the Firestore promise so callers can await it if needed
+  return db.collection('listplanner').doc('shared').set({
+    presets:  state.presets,
+    lists:    state.lists,
+    pinHash:  state.pinHash,
+  }).catch(e => console.error('Firestore save failed:', e));
+}
+
+function setupRealtimeSync() {
+  if (!db) return;
+  db.collection('listplanner').doc('shared').onSnapshot(snap => {
+    if (!snap.exists || snap.metadata.hasPendingWrites || !ui_appReady) return;
+    const d = snap.data();
+    let changed = false;
+    if (d.presets && JSON.stringify(d.presets) !== JSON.stringify(state.presets)) {
+      state.presets = d.presets;
+      changed = true;
+    }
+    if (d.lists && JSON.stringify(d.lists) !== JSON.stringify(state.lists)) {
+      state.lists = d.lists;
+      changed = true;
+    }
+    if (changed) render();
+  }, e => console.error('Firestore sync error:', e));
 }
 
 // ============================================================
