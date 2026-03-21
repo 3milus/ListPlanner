@@ -1,12 +1,11 @@
-// Replace these values with your Firebase project config from:
-// console.firebase.google.com → Your project → Project Settings → Your apps → Web app
+// Firebase project config for ListPlanner
 // IMPORTANT: Firebase configs are safe to commit — security comes from Firestore rules, not this file.
 
 window.FIREBASE_CONFIG = {
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId:         "YOUR_PROJECT_ID",
-  storageBucket:     "YOUR_PROJECT_ID.firebasestorage.app",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId:             "YOUR_APP_ID"
+  apiKey:            "AIzaSyAjIVzYI_LQKNoHbE2OKEo6PZAieON1lTQ",
+  authDomain:        "listplanner-4e4b8.firebaseapp.com",
+  projectId:         "listplanner-4e4b8",
+  storageBucket:     "listplanner-4e4b8.firebasestorage.app",
+  messagingSenderId: "854083384034",
+  appId:             "1:854083384034:web:84b32253320237ec2424bb"
 };
