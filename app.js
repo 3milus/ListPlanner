@@ -662,15 +662,25 @@ function renderListsView() {
     return;
   }
 
-  const sorted = [...state.lists].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const byDate = (a, b) => new Date(b.createdAt) - new Date(a.createdAt);
+  const active = [...state.lists].filter(l => !l.closed).sort(byDate);
+  const closed = [...state.lists].filter(l =>  l.closed).sort(byDate);
 
-  container.innerHTML = sorted.map(list => renderListCard(list)).join('');
+  let html = active.map(list => renderListCard(list)).join('');
+
+  if (closed.length > 0) {
+    html += `<div class="lists-section-header">Closed</div>`;
+    html += closed.map(list => renderListCard(list)).join('');
+  }
+
+  container.innerHTML = html;
 }
 
 function renderListCard(list) {
   const firstSection = list.sections && list.sections.length > 0 ? list.sections[0] : null;
   const dotColor = firstSection ? firstSection.color : '#6C757D';
   const isExpanded = !!ui.expandedListIds[list.id];
+  const isClosed = !!list.closed;
   const metaText = `${escapeHtml(list.presetName)} · ${formatDate(list.createdAt)}`;
 
   let bodyHtml = '';
@@ -699,8 +709,13 @@ function renderListCard(list) {
     bodyHtml = `<div class="list-card-body">${cardsHtml}</div>`;
   }
 
+  const closeTitle = isClosed ? 'Reopen list' : 'Close list';
+  const closeIcon = isClosed
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
   return `
-    <div class="list-card" data-list-id="${escapeHtml(list.id)}">
+    <div class="list-card${isClosed ? ' list-card-closed' : ''}" data-list-id="${escapeHtml(list.id)}">
       <div class="list-card-header">
         <div class="list-card-dot" style="background-color: ${dotColor};"></div>
         <div class="list-card-info">
@@ -712,6 +727,9 @@ function renderListCard(list) {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="6 9 12 15 18 9"/>
             </svg>
+          </button>
+          <button class="icon-btn${isClosed ? ' reopen-btn' : ''}" data-action="toggle-close-list" data-list-id="${escapeHtml(list.id)}" aria-label="${closeTitle}" title="${closeTitle}">
+            ${closeIcon}
           </button>
           <button class="icon-btn danger" data-action="delete-list" data-list-id="${escapeHtml(list.id)}" aria-label="Delete">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1436,6 +1454,7 @@ function setupEventListeners() {
       checkedItems: {},
       assignments: { ...ui.assignments },
       createdAt: new Date().toISOString(),
+      closed: false,
     };
 
     state.lists.push(newList);
@@ -1461,6 +1480,18 @@ function setupEventListeners() {
     if (expandBtn) {
       const listId = expandBtn.dataset.listId;
       ui.expandedListIds[listId] = !ui.expandedListIds[listId];
+      renderListsView();
+      return;
+    }
+
+    // Close / reopen list
+    const closeBtn = e.target.closest('[data-action="toggle-close-list"]');
+    if (closeBtn) {
+      const listId = closeBtn.dataset.listId;
+      const list = state.lists.find(l => l.id === listId);
+      if (!list) return;
+      list.closed = !list.closed;
+      saveState();
       renderListsView();
       return;
     }

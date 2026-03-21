@@ -561,6 +561,27 @@ html, body {
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
+.list-card-closed {
+  opacity: 0.55;
+}
+
+.list-card-closed .list-card-name {
+  text-decoration: line-through;
+}
+
+.lists-section-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 16px 4px 6px;
+}
+
+.reopen-btn {
+  color: var(--primary);
+}
+
 .list-card-header {
   display: flex;
   align-items: center;
