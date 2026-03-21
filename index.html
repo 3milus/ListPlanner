@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="ListPlanner" />
+  <meta name="theme-color" content="#2D6A4F" />
+  <meta name="description" content="Sort your grocery list by store sections" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>ListPlanner</title>
+</head>
+<body>
+  <div id="app">
+    <div id="view-sort" class="view">
+      <header class="header">
+        <h1 class="header-title">ListPlanner</h1>
+        <button id="btn-new-list" class="btn-ghost hidden">New List</button>
+      </header>
+      <div id="phase-input" class="phase">
+        <div class="paste-hint">
+          <p>Copy your list from Reminders, then paste below</p>
+        </div>
+        <textarea id="list-input" placeholder="Paste grocery list here&#10;One item per line"></textarea>
+        <button id="btn-sort" class="btn-primary">Sort List</button>
+      </div>
+      <div id="phase-results" class="phase hidden">
+        <div id="results-container"></div>
+      </div>
+    </div>
+
+    <div id="view-sections" class="view hidden">
+      <header class="header">
+        <h1 class="header-title">Sections</h1>
+        <button id="btn-add-section" class="btn-ghost">+ Add</button>
+      </header>
+      <div id="sections-list"></div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="nav-tab active" data-view="sort">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="9" cy="21" r="1"/>
+        <circle cx="20" cy="21" r="1"/>
+        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+      </svg>
+      <span>Sort</span>
+    </button>
+    <button class="nav-tab" data-view="sections">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="4" y1="21" x2="4" y2="14"/>
+        <line x1="4" y1="10" x2="4" y2="3"/>
+        <line x1="12" y1="21" x2="12" y2="12"/>
+        <line x1="12" y1="8" x2="12" y2="3"/>
+        <line x1="20" y1="21" x2="20" y2="16"/>
+        <line x1="20" y1="12" x2="20" y2="3"/>
+        <line x1="1" y1="14" x2="7" y2="14"/>
+        <line x1="9" y1="8" x2="15" y2="8"/>
+        <line x1="17" y1="16" x2="23" y2="16"/>
+      </svg>
+      <span>Sections</span>
+    </button>
+  </nav>
+
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div id="modal" class="modal">
+      <div class="modal-header">
+        <button id="modal-cancel" class="btn-ghost">Cancel</button>
+        <h2 id="modal-title">Section</h2>
+        <button id="modal-save" class="btn-ghost bold">Save</button>
+      </div>
+      <div id="modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "ListPlanner",
+  "short_name": "ListPlanner",
+  "description": "Sort your grocery list by store sections",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#2D6A4F",
+  "background_color": "#F5F5F7",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
