@@ -389,16 +389,17 @@ function buildGeneratePrompt(description, preset) {
   const sections = getSortedSections(preset.sections);
   const sectionList = sections.map((s, i) => `${i + 1}. ${s.name}`).join('\n');
 
-  // Format past lists as context (newest first, cap at 20)
+  // Format past lists of this preset type as context (newest first, cap at 20)
   const recentLists = [...state.lists]
+    .filter(l => l.presetId === preset.id)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 20);
 
   let pastContext = '';
   if (recentLists.length > 0) {
-    pastContext = '\n\nHere are the user\'s past lists to understand their preferences and typical items:\n';
+    pastContext = `\n\nHere are the user's past "${preset.name}" lists to understand their preferences and typical items:\n`;
     recentLists.forEach(list => {
-      pastContext += `\nList: "${list.name}" (${list.presetName})\n`;
+      pastContext += `\nList: "${list.name}"\n`;
       (list.sections || []).forEach(s => {
         const items = (list.items || {})[s.id] || [];
         if (items.length > 0) pastContext += `  ${s.name}: ${items.join(', ')}\n`;
@@ -520,12 +521,19 @@ function renderPresetPicker() {
 }
 
 function updateSortButton() {
-  const textarea = document.getElementById('list-input');
-  const btn = document.getElementById('btn-sort');
-  if (!textarea || !btn) return;
-  const hasText = textarea.value.trim().length > 0;
   const hasPreset = !!ui.selectedPresetId && !!state.presets.find(p => p.id === ui.selectedPresetId);
-  btn.disabled = !(hasText && hasPreset);
+
+  const textarea = document.getElementById('list-input');
+  const sortBtn  = document.getElementById('btn-sort');
+  if (textarea && sortBtn) {
+    sortBtn.disabled = !(textarea.value.trim().length > 0 && hasPreset);
+  }
+
+  const genInput = document.getElementById('generate-input');
+  const genBtn   = document.getElementById('btn-generate');
+  if (genInput && genBtn) {
+    genBtn.disabled = !(genInput.value.trim().length > 0 && hasPreset);
+  }
 }
 
 function renderResults() {
@@ -1220,11 +1228,7 @@ function setupEventListeners() {
   });
 
   // GENERATE INPUT: enable/disable button
-  document.getElementById('generate-input').addEventListener('input', () => {
-    const input = document.getElementById('generate-input');
-    const btn   = document.getElementById('btn-generate');
-    if (input && btn) btn.disabled = input.value.trim().length === 0;
-  });
+  document.getElementById('generate-input').addEventListener('input', updateSortButton);
 
   // GENERATE button
   document.getElementById('btn-generate').addEventListener('click', async () => {
