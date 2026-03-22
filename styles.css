@@ -529,6 +529,23 @@ html, body {
   cursor: pointer;
 }
 
+.btn-sort-uncat {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--primary);
+  background: none;
+  color: var(--primary);
+  cursor: pointer;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.btn-sort-uncat:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .item-ping-btn {
   flex-shrink: 0;
   background: none;

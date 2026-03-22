@@ -378,6 +378,29 @@ async function sortWithLLM(items, sections) {
 // LIST GENERATION
 // ============================================================
 
+function buildSuggestCategoriesPrompt(items) {
+  const itemList = items.map(i => `- ${i}`).join('\n');
+  return `You are a helpful assistant. The following items could not be categorized into any existing section of a list. Suggest 1-3 new section names that would logically group these items. Items may be in any language — respond in the same language as the items.
+
+Items:
+${itemList}
+
+Respond ONLY with a valid JSON array of section name strings.
+Example: ["Electronics", "Books & Media"]`;
+}
+
+async function suggestCategories(items) {
+  const prompt = buildSuggestCategoriesPrompt(items);
+  const raw = state.apiProvider === 'gemini'
+    ? await callGemini(prompt)
+    : await callOpenAI(prompt);
+  // raw may come back as an object or array depending on the LLM response shape
+  if (Array.isArray(raw)) return raw;
+  // callGemini/callOpenAI return parsed JSON objects; if it's an array-like object, convert
+  const values = Object.values(raw);
+  return values.flat().filter(v => typeof v === 'string');
+}
+
 function buildGeneratePrompt(description, preset) {
   const sections = getSortedSections(preset.sections);
   const sectionList = sections.map((s, i) => `${i + 1}. ${s.name}`).join('\n');
@@ -624,6 +647,7 @@ function renderUncategorized(items, sections) {
       <div class="uncategorized-header">
         <span class="uncategorized-title">Uncategorized</span>
         <span class="section-card-count">${items.length}</span>
+        ${sections.length > 0 ? `<button class="btn-sort-uncat" data-action="suggest-categories">Suggest categories</button>` : ''}
       </div>
       ${itemsHtml}
     </div>
@@ -832,6 +856,32 @@ function renderListSectionCard(listId, section, items, checkedItems, assignments
   `;
 }
 
+async function sortUncategorizedInList(listId, btn) {
+  const list = state.lists.find(l => l.id === listId);
+  if (!list) return;
+  const uncatItems = (list.items.uncategorized || []).filter(i => i);
+  if (!uncatItems.length) return;
+  if (!state.apiKey) { alert('Add your API key in the List Types tab first.'); return; }
+
+  if (btn) { btn.textContent = 'Sorting…'; btn.disabled = true; }
+  try {
+    const result = await sortWithLLM(uncatItems, list.sections);
+    list.sections.forEach(section => {
+      const sorted = result[section.id] || [];
+      if (!list.items[section.id]) list.items[section.id] = [];
+      sorted.forEach(item => {
+        if (!list.items[section.id].includes(item)) list.items[section.id].push(item);
+      });
+    });
+    list.items.uncategorized = result.uncategorized || [];
+    saveState();
+    renderListsView();
+  } catch (e) {
+    alert('Sort failed: ' + e.message);
+    if (btn) { btn.textContent = 'Sort with AI'; btn.disabled = false; }
+  }
+}
+
 function addItemToList(listId, sectionId, input) {
   const text = input ? input.value.trim() : '';
   if (!text) return;
@@ -876,8 +926,16 @@ function renderListUncategorized(listId, items, sections) {
       <div class="uncategorized-header">
         <span class="uncategorized-title">Uncategorized</span>
         <span class="section-card-count">${items.length}</span>
+        ${sections.length > 0 && items.length > 0 ? `<button class="btn-sort-uncat" data-action="sort-uncategorized" data-list-id="${eLid}">Sort with AI</button>` : ''}
       </div>
       ${itemsHtml}
+      <div class="add-item-row">
+        <input class="add-item-input" type="text" placeholder="Add item…"
+          autocomplete="off" autocorrect="off" spellcheck="false"
+          data-list-id="${eLid}" data-section-id="uncategorized" />
+        <button class="add-item-btn" data-action="add-list-item"
+          data-list-id="${eLid}" data-section-id="uncategorized" aria-label="Add item">+</button>
+      </div>
     </div>
   `;
 }
@@ -1485,6 +1543,27 @@ function setupEventListeners() {
       return;
     }
 
+    // Suggest categories for uncategorized items
+    const suggestBtn = e.target.closest('[data-action="suggest-categories"]');
+    if (suggestBtn) {
+      const items = ui.sortedResult?.uncategorized || [];
+      if (!items.length) return;
+      if (!state.apiKey) { alert('Add your API key in the List Types tab first.'); return; }
+      suggestBtn.textContent = 'Thinking…';
+      suggestBtn.disabled = true;
+      suggestCategories(items).then(suggestions => {
+        if (!suggestions.length) { alert('No suggestions returned.'); return; }
+        const list = suggestions.map(s => `• ${s}`).join('\n');
+        alert(`Suggested new categories:\n\n${list}\n\nAdd these to your List Type to use them next time you sort.`);
+      }).catch(e => {
+        alert('Suggestion failed: ' + e.message);
+      }).finally(() => {
+        suggestBtn.textContent = 'Suggest categories';
+        suggestBtn.disabled = false;
+      });
+      return;
+    }
+
     // Assign uncategorized
     const uncatBtn = e.target.closest('.assign-btn');
     if (!uncatBtn) return;
@@ -1569,6 +1648,13 @@ function setupEventListeners() {
       const listId = e.target.closest('[data-action="rename-list"]').dataset.listId;
       const nameEl = document.querySelector(`.list-card-name[data-list-name-id="${listId}"]`);
       if (nameEl && !nameEl.classList.contains('editing')) nameEl.click();
+      return;
+    }
+
+    // Sort uncategorized items with AI
+    const sortUncatBtn = e.target.closest('[data-action="sort-uncategorized"]');
+    if (sortUncatBtn) {
+      sortUncategorizedInList(sortUncatBtn.dataset.listId, sortUncatBtn);
       return;
     }
 
@@ -2022,11 +2108,14 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 async function subscribeToPush() {
-  if (VAPID_PUBLIC_KEY === 'BFy3fMRmXipd_OPNJ68pmm3-vRui6-N-SMjTIjUVfHYxYDgKD1ELGF-OJgVkD9LHMFaTMedqj1y8AAYu5U9Lvr4') return; // not yet configured
+  if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.startsWith('YOUR_')) return;
   if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
 
   const permission = await Notification.requestPermission();
-  if (permission !== 'granted') return;
+  if (permission !== 'granted') {
+    console.warn('Push permission denied');
+    return;
+  }
 
   try {
     const reg = await navigator.serviceWorker.ready;
@@ -2036,15 +2125,16 @@ async function subscribeToPush() {
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
 
-    // Store this device's subscription under the current user (dot-notation update
-    // so we never overwrite the other person's subscription)
     if (db && state.currentUser) {
-      await db.collection('listplanner').doc('shared').update({
-        [`pushSubscriptions.${state.currentUser}`]: sub.toJSON(),
-      });
+      // Use set+merge so it works even if pushSubscriptions field doesn't exist yet
+      await db.collection('listplanner').doc('shared').set({
+        pushSubscriptions: { [state.currentUser]: sub.toJSON() },
+      }, { merge: true });
+      console.log('Push subscription saved for', state.currentUser);
     }
   } catch (e) {
-    console.warn('Push subscription failed:', e);
+    console.error('Push subscription failed:', e);
+    alert(`Notification setup failed: ${e.message}\nMake sure the app is installed to your home screen.`);
   }
 }
 
