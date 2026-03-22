@@ -2022,7 +2022,7 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 async function subscribeToPush() {
-  if (VAPID_PUBLIC_KEY === 'YOUR_VAPID_PUBLIC_KEY') return; // not yet configured
+  if (VAPID_PUBLIC_KEY === 'BFy3fMRmXipd_OPNJ68pmm3-vRui6-N-SMjTIjUVfHYxYDgKD1ELGF-OJgVkD9LHMFaTMedqj1y8AAYu5U9Lvr4') return; // not yet configured
   if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
 
   const permission = await Notification.requestPermission();
