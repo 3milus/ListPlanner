@@ -1095,13 +1095,31 @@ function saveModal() {
     const maxOrder = preset.sections.length > 0
       ? Math.max(...preset.sections.map(s => s.order)) + 1
       : 0;
-    preset.sections.push({ id: ui.modalDraft.id, name, color: ui.modalDraft.color, order: maxOrder });
+    const newSection = { id: ui.modalDraft.id, name, color: ui.modalDraft.color, order: maxOrder };
+    preset.sections.push(newSection);
+
+    // Propagate new section to all active lists using this preset
+    state.lists.forEach(list => {
+      if (list.presetId !== preset.id || list.closed) return;
+      if (!list.sections.find(s => s.id === newSection.id)) {
+        list.sections.push({ ...newSection });
+        if (!list.items) list.items = {};
+        list.items[newSection.id] = [];
+      }
+    });
   } else if (ui.modalMode === 'edit-section') {
     const section = preset.sections.find(s => s.id === ui.modalDraft.id);
     if (section) {
       section.name = name;
       section.color = ui.modalDraft.color;
     }
+
+    // Propagate name/color change to all active lists using this preset
+    state.lists.forEach(list => {
+      if (list.presetId !== preset.id || list.closed) return;
+      const ls = list.sections.find(s => s.id === ui.modalDraft.id);
+      if (ls) { ls.name = name; ls.color = ui.modalDraft.color; }
+    });
   }
 
   saveState();
