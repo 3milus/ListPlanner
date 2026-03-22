@@ -1,4 +1,4 @@
-const CACHE_NAME = 'listplanner-v3';
+const CACHE_NAME = 'listplanner-v4';
 const ASSETS = ['./index.html', './styles.css', './app.js', './manifest.json', './firebase-config.js'];
 
 self.addEventListener('install', event => {
@@ -17,6 +17,36 @@ self.addEventListener('activate', event => {
     )
   );
   self.clients.claim();
+});
+
+// Show a system notification when a Web Push arrives
+self.addEventListener('push', event => {
+  if (!event.data) return;
+  let data = {};
+  try { data = event.data.json(); } catch { data = { title: 'ListPlanner', body: event.data.text() }; }
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'ListPlanner', {
+      body:  data.body  || '',
+      icon:  './icon-192.png',
+      badge: './icon-192.png',
+      data:  { url: data.url || './' },
+    })
+  );
+});
+
+// Open/focus the app when the user taps the notification
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const target = event.notification.data?.url || './';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const client of list) {
+        if (client.url.includes('ListPlanner') && 'focus' in client) return client.focus();
+      }
+      return clients.openWindow(target);
+    })
+  );
 });
 
 self.addEventListener('fetch', event => {

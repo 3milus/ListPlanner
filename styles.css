@@ -529,6 +529,25 @@ html, body {
   cursor: pointer;
 }
 
+.item-ping-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  opacity: 0.5;
+  cursor: pointer;
+  padding: 4px 3px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.item-ping-btn:active {
+  opacity: 1;
+  color: #E9C46A;
+}
+
 .item-delete-btn {
   flex-shrink: 0;
   background: none;

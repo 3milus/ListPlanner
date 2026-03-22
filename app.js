@@ -4,6 +4,10 @@
 
 const STORAGE_KEY = 'listplanner_v2';
 
+// Web Push — replace with your actual VAPID public key after running:
+//   npx web-push generate-vapid-keys
+const VAPID_PUBLIC_KEY = 'YOUR_VAPID_PUBLIC_KEY';
+
 const PALETTE = [
   '#2A9D8F', '#E9C46A', '#457B9D', '#E76F51',
   '#4CC9F0', '#F4A261', '#7B2FBE', '#F72585',
@@ -40,6 +44,7 @@ let state = {
   apiProvider: 'openai',
   currentUser: 'Emil',
   pinHash: '',
+  pushSubscriptions: {},   // { Emil: {...}, Rebecca: {...} } — stored in Firestore
 };
 
 let ui = {
@@ -200,11 +205,12 @@ async function loadState() {
     const snap = await db.collection('listplanner').doc('shared').get();
     if (snap.exists) {
       const d = snap.data();
-      if (Array.isArray(d.presets) && d.presets.length) state.presets    = d.presets;
-      if (Array.isArray(d.lists))                        state.lists      = d.lists;
-      if (d.pinHash)                                     state.pinHash    = d.pinHash;
-      if (d.apiKey)                                      state.apiKey     = d.apiKey;
-      if (d.apiProvider)                                 state.apiProvider = d.apiProvider;
+      if (Array.isArray(d.presets) && d.presets.length) state.presets          = d.presets;
+      if (Array.isArray(d.lists))                        state.lists            = d.lists;
+      if (d.pinHash)                                     state.pinHash          = d.pinHash;
+      if (d.apiKey)                                      state.apiKey           = d.apiKey;
+      if (d.apiProvider)                                 state.apiProvider      = d.apiProvider;
+      if (d.pushSubscriptions)                           state.pushSubscriptions = d.pushSubscriptions;
     } else {
       // First ever run — migrate any existing localStorage data then init Firestore
       try {
@@ -787,6 +793,14 @@ function renderListSectionCard(listId, section, items, checkedItems, assignments
           </button>
           ${assignBtnHtml(key, assignee, listId)}
           ${badge}
+          <button class="item-ping-btn" data-action="ping-item"
+            data-list-id="${eLid}" data-section-id="${eSid}" data-item="${eItem}"
+            aria-label="Ping" title="Ping the other person about this item">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+          </button>
           <button class="item-delete-btn" data-action="delete-list-item"
             data-list-id="${eLid}" data-section-id="${eSid}" data-item="${eItem}" aria-label="Delete item">×</button>
         </div>
@@ -1558,6 +1572,14 @@ function setupEventListeners() {
       return;
     }
 
+    // Ping the other person about an item
+    const pingBtn = e.target.closest('[data-action="ping-item"]');
+    if (pingBtn) {
+      const { listId, sectionId, item } = pingBtn.dataset;
+      sendPing(listId, sectionId, item);
+      return;
+    }
+
     // Start moving an item
     const moveTrigger = e.target.closest('[data-action="start-move-item"]');
     if (moveTrigger) {
@@ -1988,6 +2010,75 @@ function handleMoveSection(sectionId, direction) {
 }
 
 // ============================================================
+// WEB PUSH
+// ============================================================
+
+// Converts the VAPID public key (base64url) to Uint8Array for pushManager.subscribe
+function urlBase64ToUint8Array(base64String) {
+  const pad  = '='.repeat((4 - base64String.length % 4) % 4);
+  const b64  = (base64String + pad).replace(/-/g, '+').replace(/_/g, '/');
+  const raw  = atob(b64);
+  return Uint8Array.from(raw, c => c.charCodeAt(0));
+}
+
+async function subscribeToPush() {
+  if (VAPID_PUBLIC_KEY === 'YOUR_VAPID_PUBLIC_KEY') return; // not yet configured
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') return;
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.pushManager.getSubscription();
+    const sub = existing || await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+
+    // Store this device's subscription under the current user (dot-notation update
+    // so we never overwrite the other person's subscription)
+    if (db && state.currentUser) {
+      await db.collection('listplanner').doc('shared').update({
+        [`pushSubscriptions.${state.currentUser}`]: sub.toJSON(),
+      });
+    }
+  } catch (e) {
+    console.warn('Push subscription failed:', e);
+  }
+}
+
+async function sendPing(listId, sectionId, item) {
+  if (!db) { alert('No database connection.'); return; }
+
+  const list    = state.lists.find(l => l.id === listId);
+  const section = list?.sections?.find(s => s.id === sectionId);
+  const to      = USERS.find(u => u !== state.currentUser);
+
+  if (!to) return;
+
+  const hasSub = !!state.pushSubscriptions?.[to];
+  if (!hasSub) {
+    alert(`${to} hasn't enabled notifications yet.\nAsk them to open the app and allow notifications.`);
+    return;
+  }
+
+  try {
+    await db.collection('pings').add({
+      to,
+      from:        state.currentUser,
+      item,
+      listName:    list?.name    || '',
+      sectionName: section?.name || '',
+      timestamp:   Date.now(),
+    });
+  } catch (e) {
+    console.error('Failed to write ping:', e);
+    alert('Could not send ping — check your connection.');
+  }
+}
+
+// ============================================================
 // LOGIN HELPERS
 // ============================================================
 
@@ -2034,6 +2125,7 @@ async function doLogin() {
   hideLogin();
   renderUserPills();
   render();
+  subscribeToPush(); // request notification permission and store subscription
 }
 
 function setupRealtimeSync() {
@@ -2041,11 +2133,12 @@ function setupRealtimeSync() {
   db.collection('listplanner').doc('shared').onSnapshot(snap => {
     if (!snap.exists || snap.metadata.hasPendingWrites || !ui_appReady) return;
     const d = snap.data();
-    if (Array.isArray(d.presets) && d.presets.length) state.presets     = d.presets;
-    if (Array.isArray(d.lists))                        state.lists       = d.lists;
-    if (d.pinHash)                                     state.pinHash     = d.pinHash;
-    if (d.apiKey)                                      state.apiKey      = d.apiKey;
-    if (d.apiProvider)                                 state.apiProvider = d.apiProvider;
+    if (Array.isArray(d.presets) && d.presets.length) state.presets          = d.presets;
+    if (Array.isArray(d.lists))                        state.lists            = d.lists;
+    if (d.pinHash)                                     state.pinHash          = d.pinHash;
+    if (d.apiKey)                                      state.apiKey           = d.apiKey;
+    if (d.apiProvider)                                 state.apiProvider      = d.apiProvider;
+    if (d.pushSubscriptions)                           state.pushSubscriptions = d.pushSubscriptions;
     render();
   });
 }
