@@ -591,6 +591,31 @@ html, body {
   border-top: 1px solid var(--border);
 }
 
+.list-quick-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 2px solid var(--border);
+  background: var(--bg);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.list-quick-add-input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 15px;
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+}
+
+.list-quick-add-input:focus {
+  border-color: var(--primary);
+}
+
 .add-item-input {
   flex: 1;
   border: none;

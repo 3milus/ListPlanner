@@ -720,10 +720,17 @@ function renderListCard(list) {
     }
 
     if (!cardsHtml) {
-      cardsHtml = '<p class="no-items-msg">No items.</p>';
+      cardsHtml = '<p class="no-items-msg">No items yet.</p>';
     }
 
-    bodyHtml = `<div class="list-card-body">${cardsHtml}</div>`;
+    const eLid = escapeHtml(list.id);
+    bodyHtml = `
+      <div class="list-card-body">${cardsHtml}</div>
+      <div class="list-quick-add-row">
+        <input class="list-quick-add-input" type="text" placeholder="Add item to list…"
+          autocomplete="off" autocorrect="off" spellcheck="false" data-list-id="${eLid}" />
+        <button class="add-item-btn" data-action="quick-add-item" data-list-id="${eLid}" aria-label="Add">+</button>
+      </div>`;
   }
 
   const closeTitle = isClosed ? 'Reopen list' : 'Close list';
@@ -1651,6 +1658,15 @@ function setupEventListeners() {
       return;
     }
 
+    // Quick-add item to uncategorized
+    const quickAddBtn = e.target.closest('[data-action="quick-add-item"]');
+    if (quickAddBtn) {
+      const listId = quickAddBtn.dataset.listId;
+      const input = quickAddBtn.closest('.list-quick-add-row')?.querySelector('.list-quick-add-input');
+      addItemToList(listId, 'uncategorized', input);
+      return;
+    }
+
     // Sort uncategorized items with AI
     const sortUncatBtn = e.target.closest('[data-action="sort-uncategorized"]');
     if (sortUncatBtn) {
@@ -1888,6 +1904,12 @@ function setupEventListeners() {
   // LISTS container: Enter key on add-item inputs
   document.getElementById('lists-container').addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
+    const quickInput = e.target.closest('.list-quick-add-input');
+    if (quickInput) {
+      e.preventDefault();
+      addItemToList(quickInput.dataset.listId, 'uncategorized', quickInput);
+      return;
+    }
     const input = e.target.closest('.add-item-input');
     if (!input) return;
     e.preventDefault();
