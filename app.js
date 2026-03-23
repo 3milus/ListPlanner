@@ -482,6 +482,27 @@ function renderUserPills() {
   const initial = state.currentUser[0];
   const html = `<span class="user-pill-dot" style="background:${color}">${initial}</span>${escapeHtml(state.currentUser)}`;
   document.querySelectorAll('.btn-switch-user').forEach(btn => { btn.innerHTML = html; });
+  updateNotifBtn();
+}
+
+function updateNotifBtn() {
+  const btn = document.getElementById('btn-enable-notif');
+  if (!btn) return;
+  const hasSub = !!state.pushSubscriptions?.[state.currentUser];
+  const supported = 'Notification' in window && 'serviceWorker' in navigator;
+  if (!supported) { btn.classList.add('hidden'); return; }
+  btn.classList.remove('hidden');
+  if (hasSub) {
+    btn.innerHTML = '🔔';
+    btn.title = 'Notifications enabled';
+    btn.classList.add('notif-on');
+    btn.classList.remove('notif-off');
+  } else {
+    btn.innerHTML = '🔕';
+    btn.title = 'Tap to enable notifications';
+    btn.classList.add('notif-off');
+    btn.classList.remove('notif-on');
+  }
 }
 
 function renderSortView() {
@@ -1346,6 +1367,11 @@ function setupEventListeners() {
     if (!btn) return;
     sessionStorage.removeItem('loggedIn');
     showLogin();
+  });
+
+  // ENABLE NOTIFICATIONS button — must be a direct user gesture for iOS
+  document.getElementById('btn-enable-notif').addEventListener('click', () => {
+    subscribeToPush().then(() => updateNotifBtn());
   });
 
   // BOTTOM NAV
@@ -2234,7 +2260,6 @@ async function doLogin() {
   hideLogin();
   renderUserPills();
   render();
-  subscribeToPush(); // request notification permission and store subscription
 }
 
 function setupRealtimeSync() {
@@ -2249,6 +2274,7 @@ function setupRealtimeSync() {
     if (d.apiProvider)                                 state.apiProvider      = d.apiProvider;
     if (d.pushSubscriptions)                           state.pushSubscriptions = d.pushSubscriptions;
     render();
+    updateNotifBtn();
   });
 }
 

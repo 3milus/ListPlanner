@@ -1361,6 +1361,28 @@ html, body {
 }
 
 /* ============================================================
+   NOTIFICATION BELL BUTTON
+   ============================================================ */
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-notif-status {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+}
+
+.btn-notif-status.notif-on  { opacity: 1; }
+.btn-notif-status.notif-off { opacity: 0.45; }
+
+/* ============================================================
    USER PILL & BADGE
    ============================================================ */
 
