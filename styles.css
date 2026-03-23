@@ -171,6 +171,27 @@ html, body {
   transform: none;
 }
 
+.btn-suggest-sections {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: calc(100% - 32px);
+  margin: 12px 16px 4px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(45,106,79,0.1), rgba(76,201,240,0.1));
+  border: 1.5px dashed var(--primary);
+  border-radius: var(--radius);
+  color: var(--primary);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-suggest-sections:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .btn-primary-small {
   height: 44px;
   padding: 0 16px;

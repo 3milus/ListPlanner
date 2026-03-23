@@ -465,6 +465,78 @@ function parseGenerateResponse(response, preset) {
   return result;
 }
 
+async function suggestSectionsForPreset(presetId) {
+  const preset = getPreset(presetId);
+  if (!preset) return;
+  if (!state.apiKey) { alert('Please add your API key in the List Types settings first.'); return; }
+
+  // Collect all unique items from past lists of this preset
+  const allItems = new Set();
+  state.lists
+    .filter(l => l.presetId === presetId)
+    .forEach(list => {
+      Object.values(list.items || {}).forEach(arr => {
+        if (Array.isArray(arr)) arr.forEach(item => allItems.add(item));
+      });
+    });
+
+  if (allItems.size === 0) { alert('No items found in past lists to learn from.'); return; }
+
+  const existingNames = (preset.sections || []).map(s => s.name.toLowerCase());
+  const itemList = [...allItems].join(', ');
+  const prompt = `You are helping organise a list type called "${preset.name}".
+
+Here are all the items that have appeared in past lists of this type:
+${itemList}
+
+Based on these items, suggest 5-8 meaningful category names that would logically group them.
+Avoid duplicating these already existing categories: ${existingNames.join(', ') || 'none'}.
+Return ONLY a valid JSON array of category name strings, nothing else.
+Example: ["Fruits & Vegetables", "Dairy & Eggs", "Meat & Fish"]`;
+
+  const btn = document.querySelector(`[data-action="suggest-sections"]`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Thinking…'; }
+
+  try {
+    const raw = state.apiProvider === 'gemini'
+      ? await callGemini(prompt)
+      : await callOpenAI(prompt);
+
+    // Extract JSON array from response
+    const match = raw.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error('No JSON array found in response');
+    const names = JSON.parse(match[0]);
+    if (!Array.isArray(names) || names.length === 0) throw new Error('Empty response');
+
+    // Filter out names already in the preset
+    const newNames = names.filter(n => typeof n === 'string' && !existingNames.includes(n.toLowerCase()));
+    if (newNames.length === 0) { alert('All suggested categories already exist.'); return; }
+
+    // Add new sections with colours from the palette
+    const usedColors = new Set((preset.sections || []).map(s => s.color));
+    const availableColors = PALETTE.filter(c => !usedColors.has(c));
+    let colorIdx = 0;
+    const maxOrder = Math.max(0, ...(preset.sections || []).map(s => s.order ?? 0));
+
+    newNames.forEach((name, i) => {
+      preset.sections.push({
+        id:    uid(),
+        name,
+        color: availableColors[colorIdx++ % availableColors.length] || PALETTE[i % PALETTE.length],
+        order: maxOrder + i + 1,
+      });
+    });
+
+    saveState();
+    renderPresetDetail();
+    alert(`Added ${newNames.length} suggested categor${newNames.length === 1 ? 'y' : 'ies'}:\n${newNames.join('\n')}`);
+  } catch (e) {
+    console.error('suggestSections error:', e);
+    alert('Could not get suggestions: ' + e.message);
+    renderPresetDetail();
+  }
+}
+
 async function generateList(description, preset) {
   const prompt = buildGeneratePrompt(description, preset);
   const response = state.apiProvider === 'gemini'
@@ -1089,6 +1161,18 @@ function renderPresetDetail() {
         </div>
       `;
     }).join('');
+  }
+
+  // Suggest categories button (only shown when there are past lists to learn from)
+  const pastListCount = state.lists.filter(l => l.presetId === preset.id).length;
+  if (pastListCount > 0) {
+    html += `
+      <button class="btn-suggest-sections" data-action="suggest-sections" data-preset-id="${escapeHtml(preset.id)}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+          <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
+        </svg>
+        Suggest categories from past lists
+      </button>`;
   }
 
   html += getApiSettingsHtml();
@@ -2029,6 +2113,11 @@ function setupEventListeners() {
 
       if (action === 'delete-section') {
         handleDeleteSection(sectionId);
+        return;
+      }
+
+      if (action === 'suggest-sections') {
+        suggestSectionsForPreset(presetId);
         return;
       }
 

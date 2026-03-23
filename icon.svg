@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background: dark green rounded square -->
+  <rect width="512" height="512" rx="110" ry="110" fill="#2D6A4F"/>
+
+  <!-- Row 1: Checked -->
+  <!-- Circle (white fill) -->
+  <circle cx="130" cy="178" r="34" fill="white"/>
+  <!-- Checkmark stroke in #4CC9F0 -->
+  <polyline points="116,178 126,190 146,164" fill="none" stroke="#4CC9F0" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Text pill (white) -->
+  <rect x="184" y="158" width="188" height="40" rx="20" fill="white"/>
+
+  <!-- Row 2: Checked -->
+  <!-- Circle (white fill) -->
+  <circle cx="130" cy="268" r="34" fill="white"/>
+  <!-- Checkmark stroke in #4CC9F0 -->
+  <polyline points="116,268 126,280 146,254" fill="none" stroke="#4CC9F0" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Text pill (white), slightly shorter for variety -->
+  <rect x="184" y="248" width="152" height="40" rx="20" fill="white"/>
+
+  <!-- Row 3: Unchecked -->
+  <!-- Circle outline in white at 50% opacity -->
+  <circle cx="130" cy="358" r="34" fill="none" stroke="white" stroke-width="5" opacity="0.5"/>
+  <!-- Text pill in white at 35% opacity -->
+  <rect x="184" y="338" width="172" height="40" rx="20" fill="white" opacity="0.35"/>
+
+  <!--
+    Gold 4-pointed sparkle star (✦ style) centered at (372, 138).
+    Built as a sharp 4-point star: long axis arms ±30, short axis arms ±10 (inset points).
+    The four cardinal tips meet at distance 30; the diagonal inset points are at distance 10.
+  -->
+  <path d="
+    M 372 108
+    L 376 128
+    L 402 138
+    L 376 148
+    L 372 168
+    L 368 148
+    L 342 138
+    L 368 128
+    Z
+  " fill="#E9C46A"/>
+</svg>
