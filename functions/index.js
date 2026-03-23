@@ -12,9 +12,11 @@ exports.sendPing = functions.firestore
   .onCreate(async (snap) => {
     const { to, from, item, listName, sectionName } = snap.data();
 
-    // Load VAPID config set via: firebase functions:config:set vapid.email=... etc.
-    const cfg = functions.config().vapid;
-    webPush.setVapidDetails(`mailto:${cfg.email}`, cfg.public_key, cfg.private_key);
+    webPush.setVapidDetails(
+      `mailto:${process.env.VAPID_EMAIL}`,
+      process.env.VAPID_PUBLIC_KEY,
+      process.env.VAPID_PRIVATE_KEY
+    );
 
     // Read the target user's push subscription from Firestore
     const shared = await db.collection('listplanner').doc('shared').get();

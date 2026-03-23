@@ -6,7 +6,7 @@ const STORAGE_KEY = 'listplanner_v2';
 
 // Web Push — replace with your actual VAPID public key after running:
 //   npx web-push generate-vapid-keys
-const VAPID_PUBLIC_KEY = 'YOUR_VAPID_PUBLIC_KEY';
+const VAPID_PUBLIC_KEY = 'BFy3fMRmXipd_OPNJ68pmm3-vRui6-N-SMjTIjUVfHYxYDgKD1ELGF-OJgVkD9LHMFaTMedqj1y8AAYu5U9Lvr4';
 
 const PALETTE = [
   '#2A9D8F', '#E9C46A', '#457B9D', '#E76F51',
@@ -2131,7 +2131,7 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 async function subscribeToPush() {
-  if (!VAPID_PUBLIC_KEY || VAPID_PUBLIC_KEY.startsWith('YOUR_')) return;
+  if (!VAPID_PUBLIC_KEY) return;
   if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
 
   const permission = await Notification.requestPermission();
