@@ -246,11 +246,12 @@ function saveState() {
   }
   // Return the Firestore promise so callers can await it if needed
   return db.collection('listplanner').doc('shared').set({
-    presets:     state.presets,
-    lists:       state.lists,
-    pinHash:     state.pinHash,
-    apiKey:      state.apiKey,
-    apiProvider: state.apiProvider,
+    presets:           state.presets,
+    lists:             state.lists,
+    pinHash:           state.pinHash,
+    apiKey:            state.apiKey,
+    apiProvider:       state.apiProvider,
+    pushSubscriptions: state.pushSubscriptions,
   }).catch(e => console.error('Firestore save failed:', e));
 }
 
@@ -2147,13 +2148,9 @@ async function subscribeToPush() {
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
 
-    if (db && state.currentUser) {
-      // Use set+merge so it works even if pushSubscriptions field doesn't exist yet
-      await db.collection('listplanner').doc('shared').set({
-        pushSubscriptions: { [state.currentUser]: sub.toJSON() },
-      }, { merge: true });
-      console.log('Push subscription saved for', state.currentUser);
-    }
+    state.pushSubscriptions[state.currentUser] = sub.toJSON();
+    saveState();
+    console.log('Push subscription saved for', state.currentUser);
   } catch (e) {
     console.error('Push subscription failed:', e);
     alert(`Notification setup failed: ${e.message}\nMake sure the app is installed to your home screen.`);
