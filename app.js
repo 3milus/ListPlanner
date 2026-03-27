@@ -558,6 +558,16 @@ function renderUserPills() {
   updateNotifBtn();
 }
 
+let _toastTimer = null;
+function showToast(msg, type = 'info', duration = 3000) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  clearTimeout(_toastTimer);
+  el.textContent = msg;
+  el.className = `toast toast-${type} show`;
+  _toastTimer = setTimeout(() => { el.classList.remove('show'); }, duration);
+}
+
 function updateNotifBtn() {
   const btn = document.getElementById('btn-enable-notif');
   if (!btn) return;
@@ -1455,8 +1465,14 @@ function setupEventListeners() {
   });
 
   // ENABLE NOTIFICATIONS button — must be a direct user gesture for iOS
-  document.getElementById('btn-enable-notif').addEventListener('click', () => {
-    subscribeToPush().then(() => updateNotifBtn());
+  document.getElementById('btn-enable-notif').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-enable-notif');
+    btn.classList.add('notif-busy');
+    btn.disabled = true;
+    await subscribeToPush();
+    btn.disabled = false;
+    btn.classList.remove('notif-busy');
+    updateNotifBtn();
   });
 
   // BOTTOM NAV
@@ -2249,7 +2265,7 @@ function urlBase64ToUint8Array(base64String) {
 async function subscribeToPush() {
   if (!VAPID_PUBLIC_KEY) { console.warn('[Push] No VAPID key set'); return; }
   if (!('serviceWorker' in navigator)) { console.warn('[Push] Service workers not supported'); return; }
-  if (!('PushManager' in window)) { console.warn('[Push] PushManager not supported — on iOS, app must be installed to home screen'); alert('Push notifications require the app to be installed to your home screen first.'); return; }
+  if (!('PushManager' in window)) { console.warn('[Push] PushManager not supported — on iOS, app must be installed to home screen'); showToast('Install the app to your home screen first, then enable notifications.', 'error', 5000); return; }
 
   console.log('[Push] Requesting notification permission…');
   const permission = await Notification.requestPermission();
@@ -2265,7 +2281,7 @@ async function subscribeToPush() {
     console.log('[Push] SW ready. Checking existing subscription…');
 
     if (!reg.pushManager) {
-      alert('Push notifications are not available.\nOn iPhone, the app must be installed to your home screen (not opened in Safari).');
+      showToast('On iPhone, open via home screen (not Safari) to enable notifications.', 'error', 5000);
       return;
     }
 
@@ -2292,14 +2308,16 @@ async function subscribeToPush() {
         state.pushSubscriptions = snap.data().pushSubscriptions;
         console.log('[Push] Refreshed subscriptions:', Object.keys(state.pushSubscriptions));
       }
+      showToast('Notifications enabled!', 'success');
     } else {
       console.warn('[Push] No db — subscription saved locally only');
+      showToast('Notifications enabled.', 'info');
     }
 
     updateNotifBtn();
   } catch (e) {
     console.error('[Push] Failed:', e);
-    alert(`Notification setup failed:\n${e.message}`);
+    showToast(`Could not enable notifications: ${e.message}`, 'error', 6000);
   }
 }
 
@@ -2334,9 +2352,14 @@ async function sendPing(listId, sectionId, item) {
       sectionName: section?.name || '',
       timestamp:   Date.now(),
     });
+    if (hasSub) {
+      showToast(`Pinged ${to} about "${item}"`, 'success');
+    } else {
+      showToast(`Ping sent, but ${to} hasn't enabled notifications yet.`, 'info', 5000);
+    }
   } catch (e) {
     console.error('Failed to write ping:', e);
-    alert('Could not send ping — check your connection.');
+    showToast('Could not send ping — check your connection.', 'error');
   }
 }
 

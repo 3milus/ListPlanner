@@ -1398,10 +1398,45 @@ html, body {
   cursor: pointer;
   padding: 4px;
   line-height: 1;
+  transition: opacity 0.2s;
 }
 
-.btn-notif-status.notif-on  { opacity: 1; }
-.btn-notif-status.notif-off { opacity: 0.45; }
+.btn-notif-status.notif-on   { opacity: 1; }
+.btn-notif-status.notif-off  { opacity: 0.45; }
+.btn-notif-status.notif-busy { opacity: 0.7; animation: bell-pulse 0.7s ease-in-out infinite; }
+
+@keyframes bell-pulse {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25%       { transform: scale(1.2) rotate(-12deg); }
+  75%       { transform: scale(1.2) rotate(12deg); }
+}
+
+/* ── Toast ─────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 88px;
+  left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  padding: 10px 20px;
+  border-radius: 22px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.22s, transform 0.22s;
+  pointer-events: none;
+  max-width: 88vw;
+  text-align: center;
+  background: #222;
+  color: #fff;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.toast.toast-success { background: #2D6A4F; }
+.toast.toast-error   { background: #C0392B; }
+.toast.toast-info    { background: #457B9D; }
 
 /* ============================================================
    USER PILL & BADGE
