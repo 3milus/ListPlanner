@@ -2247,42 +2247,59 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 async function subscribeToPush() {
-  if (!VAPID_PUBLIC_KEY) return;
-  if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+  if (!VAPID_PUBLIC_KEY) { console.warn('[Push] No VAPID key set'); return; }
+  if (!('serviceWorker' in navigator)) { console.warn('[Push] Service workers not supported'); return; }
+  if (!('PushManager' in window)) { console.warn('[Push] PushManager not supported — on iOS, app must be installed to home screen'); alert('Push notifications require the app to be installed to your home screen first.'); return; }
 
+  console.log('[Push] Requesting notification permission…');
   const permission = await Notification.requestPermission();
-  if (permission !== 'granted') {
-    console.warn('Push permission denied');
-    return;
-  }
+  console.log('[Push] Permission:', permission);
+  if (permission !== 'granted') { console.warn('[Push] Permission denied'); return; }
 
   try {
-    const reg = await navigator.serviceWorker.ready;
+    console.log('[Push] Waiting for service worker…');
+    const reg = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise((_, rej) => setTimeout(() => rej(new Error('Service worker did not become ready within 10 s — try reinstalling the app to your home screen')), 10000)),
+    ]);
+    console.log('[Push] SW ready. Checking existing subscription…');
+
+    if (!reg.pushManager) {
+      alert('Push notifications are not available.\nOn iPhone, the app must be installed to your home screen (not opened in Safari).');
+      return;
+    }
+
     const existing = await reg.pushManager.getSubscription();
+    console.log('[Push] Existing subscription:', existing ? existing.endpoint : 'none');
+
     const sub = existing || await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
+    console.log('[Push] Subscription obtained:', sub.endpoint);
 
     const subJson = sub.toJSON();
     state.pushSubscriptions[state.currentUser] = subJson;
-    // Targeted field update — never overwrites the other user's subscription
+
     if (db) {
+      console.log('[Push] Saving to Firestore…');
       await db.collection('listplanner').doc('shared').update({
         [`pushSubscriptions.${state.currentUser}`]: subJson,
       });
-      console.log('Push subscription saved to Firestore for', state.currentUser, subJson.endpoint);
-      // Re-fetch so we also pick up the other user's subscription in case the
-      // real-time sync skipped our own write (hasPendingWrites guard)
+      console.log('[Push] Saved to Firestore for', state.currentUser);
       const snap = await db.collection('listplanner').doc('shared').get();
       if (snap.exists && snap.data().pushSubscriptions) {
         state.pushSubscriptions = snap.data().pushSubscriptions;
-        console.log('pushSubscriptions refreshed:', Object.keys(state.pushSubscriptions));
+        console.log('[Push] Refreshed subscriptions:', Object.keys(state.pushSubscriptions));
       }
+    } else {
+      console.warn('[Push] No db — subscription saved locally only');
     }
+
+    updateNotifBtn();
   } catch (e) {
-    console.error('Push subscription failed:', e);
-    alert(`Notification setup failed: ${e.message}\n\nMake sure the app is installed to your home screen (not just open in Safari).`);
+    console.error('[Push] Failed:', e);
+    alert(`Notification setup failed:\n${e.message}`);
   }
 }
 
