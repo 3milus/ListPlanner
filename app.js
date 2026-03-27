@@ -2272,6 +2272,13 @@ async function subscribeToPush() {
         [`pushSubscriptions.${state.currentUser}`]: subJson,
       });
       console.log('Push subscription saved to Firestore for', state.currentUser, subJson.endpoint);
+      // Re-fetch so we also pick up the other user's subscription in case the
+      // real-time sync skipped our own write (hasPendingWrites guard)
+      const snap = await db.collection('listplanner').doc('shared').get();
+      if (snap.exists && snap.data().pushSubscriptions) {
+        state.pushSubscriptions = snap.data().pushSubscriptions;
+        console.log('pushSubscriptions refreshed:', Object.keys(state.pushSubscriptions));
+      }
     }
   } catch (e) {
     console.error('Push subscription failed:', e);
@@ -2288,10 +2295,17 @@ async function sendPing(listId, sectionId, item) {
 
   if (!to) return;
 
+  // Re-fetch subscriptions in case local state is stale
+  try {
+    const shared = await db.collection('listplanner').doc('shared').get();
+    if (shared.exists && shared.data().pushSubscriptions) {
+      state.pushSubscriptions = shared.data().pushSubscriptions;
+    }
+  } catch (e) { console.warn('Could not refresh subscriptions:', e); }
+
   const hasSub = !!state.pushSubscriptions?.[to];
   if (!hasSub) {
-    alert(`${to} hasn't enabled notifications yet.\nAsk them to open the app and allow notifications.`);
-    return;
+    console.warn(`No push subscription found for ${to} in Firestore — ping will be written but no notification will be sent.`);
   }
 
   try {
