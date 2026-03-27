@@ -48,7 +48,7 @@ let state = {
 };
 
 let ui = {
-  view: 'sort',
+  view: 'lists',
   sortPhase: 'input',
   sortMode: 'paste',      // 'paste' | 'generate'
   selectedPresetId: null,

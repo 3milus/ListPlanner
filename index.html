@@ -53,7 +53,7 @@
     <div id="view-sort" class="view">
       <header class="header">
         <button class="btn-switch-user user-pill"></button>
-        <h1 class="header-title">ListPlanner</h1>
+        <h1 class="header-title">Add List</h1>
         <div class="header-right">
           <button id="btn-enable-notif" class="btn-notif-status hidden" title="Enable notifications" aria-label="Enable notifications"></button>
           <button id="btn-new-list" class="btn-ghost hidden">New List</button>
@@ -136,15 +136,7 @@
 
   <!-- ===================== BOTTOM NAV ===================== -->
   <nav class="bottom-nav">
-    <button class="nav-tab active" data-view="sort">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="9" cy="21" r="1"/>
-        <circle cx="20" cy="21" r="1"/>
-        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-      </svg>
-      <span>Sort</span>
-    </button>
-    <button class="nav-tab" data-view="lists">
+    <button class="nav-tab active" data-view="lists">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="5" cy="6" r="1.5" fill="currentColor" stroke="none"/>
         <circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/>
@@ -168,6 +160,10 @@
         <line x1="17" y1="16" x2="23" y2="16"/>
       </svg>
       <span>List Types</span>
+    </button>
+    <button class="nav-tab" data-view="sort">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      <span>Add</span>
     </button>
   </nav>
 
