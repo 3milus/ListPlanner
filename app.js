@@ -2447,6 +2447,11 @@ function assignBtnHtml(key, assignee, listId) {
 // ============================================================
 
 async function init() {
+  // Register service worker (required for push notifications and offline caching)
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(e => console.error('SW registration failed:', e));
+  }
+
   initFirebase();
   showLogin();
   setupEventListeners();
