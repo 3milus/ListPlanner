@@ -1,11 +1,15 @@
-const CACHE_NAME = 'listplanner-v5';
+const CACHE_NAME = 'listplanner-v6';
 const ASSETS = ['./index.html', './styles.css', './app.js', './manifest.json', './firebase-config.js', './icon.svg'];
 
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
-  );
+  // skipWaiting first so the SW activates immediately
   self.skipWaiting();
+  // Cache assets but never let individual failures block installation
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.allSettled(ASSETS.map(url => cache.add(url)))
+    )
+  );
 });
 
 self.addEventListener('activate', event => {
