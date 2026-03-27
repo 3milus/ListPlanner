@@ -245,14 +245,15 @@ function saveState() {
     return;
   }
   // Return the Firestore promise so callers can await it if needed
+  // pushSubscriptions is intentionally excluded — it's updated per-user via targeted field updates
+  // to prevent one user's save from overwriting the other's subscription
   return db.collection('listplanner').doc('shared').set({
-    presets:           state.presets,
-    lists:             state.lists,
-    pinHash:           state.pinHash,
-    apiKey:            state.apiKey,
-    apiProvider:       state.apiProvider,
-    pushSubscriptions: state.pushSubscriptions,
-  }).catch(e => console.error('Firestore save failed:', e));
+    presets:     state.presets,
+    lists:       state.lists,
+    pinHash:     state.pinHash,
+    apiKey:      state.apiKey,
+    apiProvider: state.apiProvider,
+  }, { merge: true }).catch(e => console.error('Firestore save failed:', e));
 }
 
 // ============================================================
@@ -2263,12 +2264,18 @@ async function subscribeToPush() {
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
 
-    state.pushSubscriptions[state.currentUser] = sub.toJSON();
-    saveState();
-    console.log('Push subscription saved for', state.currentUser);
+    const subJson = sub.toJSON();
+    state.pushSubscriptions[state.currentUser] = subJson;
+    // Targeted field update — never overwrites the other user's subscription
+    if (db) {
+      await db.collection('listplanner').doc('shared').update({
+        [`pushSubscriptions.${state.currentUser}`]: subJson,
+      });
+      console.log('Push subscription saved to Firestore for', state.currentUser, subJson.endpoint);
+    }
   } catch (e) {
     console.error('Push subscription failed:', e);
-    alert(`Notification setup failed: ${e.message}\nMake sure the app is installed to your home screen.`);
+    alert(`Notification setup failed: ${e.message}\n\nMake sure the app is installed to your home screen (not just open in Safari).`);
   }
 }
 

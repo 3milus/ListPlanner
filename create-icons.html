@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Generate ListPlanner Icons</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 32px; background: #f5f5f7; }
+    h1 { margin-bottom: 8px; }
+    p { color: #555; margin-bottom: 24px; }
+    .icons { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 24px; }
+    .icon-box { text-align: center; }
+    canvas { display: block; border-radius: 22%; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+    a.dl { display: block; margin-top: 8px; color: #2D6A4F; font-weight: 600; text-decoration: none; }
+    a.dl:hover { text-decoration: underline; }
+    small { color: #888; font-size: 12px; display: block; }
+    button { padding: 12px 28px; background: #2D6A4F; color: white; border: none; border-radius: 10px; font-size: 16px; cursor: pointer; }
+    button:hover { background: #235a3f; }
+  </style>
+</head>
+<body>
+  <h1>ListPlanner Icon Generator</h1>
+  <p>Click the button below to generate the PNG icons. Then download each one and place them in your ListPlanner folder.</p>
+  <button onclick="generate()">Generate Icons</button>
+  <div class="icons" id="output"></div>
+
+  <script>
+    const svgSrc = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="110" ry="110" fill="#2D6A4F"/>
+  <circle cx="130" cy="178" r="34" fill="white"/>
+  <polyline points="116,178 126,190 146,164" fill="none" stroke="#4CC9F0" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="184" y="158" width="188" height="40" rx="20" fill="white"/>
+  <circle cx="130" cy="268" r="34" fill="white"/>
+  <polyline points="116,268 126,280 146,254" fill="none" stroke="#4CC9F0" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="184" y="248" width="152" height="40" rx="20" fill="white"/>
+  <circle cx="130" cy="358" r="34" fill="none" stroke="white" stroke-width="5" opacity="0.5"/>
+  <rect x="184" y="338" width="172" height="40" rx="20" fill="white" opacity="0.35"/>
+  <path d="M 372 108 L 376 128 L 402 138 L 376 148 L 372 168 L 368 148 L 342 138 L 368 128 Z" fill="#E9C46A"/>
+</svg>`;
+
+    const sizes = [
+      { name: 'icon-192.png',      size: 192, label: '192×192 (PWA)' },
+      { name: 'icon-512.png',      size: 512, label: '512×512 (PWA)' },
+      { name: 'apple-touch-icon.png', size: 180, label: '180×180 (iOS)' },
+    ];
+
+    function generate() {
+      const output = document.getElementById('output');
+      output.innerHTML = '';
+      const blob = new Blob([svgSrc], { type: 'image/svg+xml' });
+      const url  = URL.createObjectURL(blob);
+      const img  = new Image();
+      img.onload = () => {
+        sizes.forEach(({ name, size, label }) => {
+          const canvas = document.createElement('canvas');
+          canvas.width = canvas.height = size;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, size, size);
+
+          const a = document.createElement('a');
+          a.href = canvas.toDataURL('image/png');
+          a.download = name;
+          a.className = 'dl';
+          a.textContent = `Download ${name}`;
+
+          const box = document.createElement('div');
+          box.className = 'icon-box';
+          const preview = document.createElement('canvas');
+          const previewSize = Math.min(size, 128);
+          preview.width = preview.height = previewSize;
+          preview.getContext('2d').drawImage(canvas, 0, 0, previewSize, previewSize);
+          box.appendChild(preview);
+          box.appendChild(a);
+          box.innerHTML += `<small>${label}</small>`;
+          box.appendChild(a);
+          output.appendChild(box);
+        });
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
+    }
+  </script>
+</body>
+</html>

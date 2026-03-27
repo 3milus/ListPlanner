@@ -1,5 +1,5 @@
-const CACHE_NAME = 'listplanner-v4';
-const ASSETS = ['./index.html', './styles.css', './app.js', './manifest.json', './firebase-config.js'];
+const CACHE_NAME = 'listplanner-v5';
+const ASSETS = ['./index.html', './styles.css', './app.js', './manifest.json', './firebase-config.js', './icon.svg', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(
