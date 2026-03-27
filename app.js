@@ -469,7 +469,7 @@ function parseGenerateResponse(response, preset) {
 async function suggestSectionsForPreset(presetId) {
   const preset = getPreset(presetId);
   if (!preset) return;
-  if (!state.apiKey) { alert('Please add your API key in the List Types settings first.'); return; }
+  if (!state.apiKey) { showToast('Add your API key in the List Types settings first.', 'error', 4000); return; }
 
   // Collect all unique items from past lists of this preset
   const allItems = new Set();
@@ -481,7 +481,7 @@ async function suggestSectionsForPreset(presetId) {
       });
     });
 
-  if (allItems.size === 0) { alert('No items found in past lists to learn from.'); return; }
+  if (allItems.size === 0) { showToast('No items found in lists of this type yet.', 'info'); return; }
 
   const existingNames = (preset.sections || []).map(s => s.name.toLowerCase());
   const itemList = [...allItems].join(', ');
@@ -511,7 +511,7 @@ Example: ["Fruits & Vegetables", "Dairy & Eggs", "Meat & Fish"]`;
 
     // Filter out names already in the preset
     const newNames = names.filter(n => typeof n === 'string' && !existingNames.includes(n.toLowerCase()));
-    if (newNames.length === 0) { alert('All suggested categories already exist.'); return; }
+    if (newNames.length === 0) { showToast('All suggested categories already exist.', 'info'); return; }
 
     // Add new sections with colours from the palette
     const usedColors = new Set((preset.sections || []).map(s => s.color));
@@ -530,10 +530,10 @@ Example: ["Fruits & Vegetables", "Dairy & Eggs", "Meat & Fish"]`;
 
     saveState();
     renderPresetDetail();
-    alert(`Added ${newNames.length} suggested categor${newNames.length === 1 ? 'y' : 'ies'}:\n${newNames.join('\n')}`);
+    showToast(`Added ${newNames.length} suggested categor${newNames.length === 1 ? 'y' : 'ies'}: ${newNames.join(', ')}`, 'success', 5000);
   } catch (e) {
     console.error('suggestSections error:', e);
-    alert('Could not get suggestions: ' + e.message);
+    showToast('Could not get suggestions: ' + e.message, 'error', 5000);
     renderPresetDetail();
   }
 }
@@ -2134,7 +2134,7 @@ function setupEventListeners() {
       }
 
       if (action === 'suggest-sections') {
-        suggestSectionsForPreset(presetId);
+        suggestSectionsForPreset(btn.dataset.presetId);
         return;
       }
 
